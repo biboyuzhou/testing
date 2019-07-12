@@ -134,7 +134,6 @@ public class TietouCleanService {
 
     /**
      * 将车牌信息以 车牌号-车牌id的方式存入redis中
-     *
      * @param originFlag
      */
     public void initCarDic2Cache(Integer originFlag) {
