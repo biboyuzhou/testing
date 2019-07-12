@@ -1,0 +1,40 @@
+spring:
+  profiles:
+    active: second
+  http:
+    encoding:
+      charset: UTF-8
+  cache:
+    type: ehcache
+    ehcache:
+      config: classpath:ehcache-setting.xml
+  servlet:
+    multipart:
+      max-request-size: 10000MB
+      max-file-size: 10000MB
+  jackson:
+    default-property-inclusion: non_null
+    deserialization:
+      FAIL_ON_UNKNOWN_PROPERTIES: false
+logging:
+  config: classpath:logback-spring.xml
+mybatis:
+  configuration:
+    vfs-impl: tk.mybatis.mapper.autoconfigure.SpringBootVFS
+    cache-enabled: false
+#    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  type-aliases-package: com.drcnet.highway.entity
+  mapper-locations: classpath*:mapper/*.xml
+pagehelper:
+  helperDialect: mysql
+  reasonable: false
+  supportMethodsArguments: true
+  params: count=countSql
+  properties:
+  page-size-zero: false
+server:
+  port: 9080
+  tomcat:
+    uri-encoding: UTF-8
+    max-threads: 2000
+    max-connections: 1000

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.drcnet.highway.dao.TietouSameStationFrequentlyMapper">
+  <resultMap id="BaseResultMap" type="com.drcnet.highway.entity.TietouSameStationFrequently">
+    <!--
+      WARNING - @mbg.generated
+    -->
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="car_no_id" jdbcType="INTEGER" property="vlpId" />
+    <result column="car_no" jdbcType="VARCHAR" property="vlp" />
+    <result column="station_id" jdbcType="INTEGER" property="stationId" />
+    <result column="toll_station_name" jdbcType="VARCHAR" property="tollStationName" />
+    <result column="out_time" jdbcType="TIMESTAMP" property="outTime" />
+    <result column="in_time" jdbcType="TIMESTAMP" property="inTime" />
+    <result column="interval_time" jdbcType="INTEGER" property="intervalTime" />
+    <result column="month_time" jdbcType="INTEGER" property="monthTime" />
+    <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+  </resultMap>
+    <select id="hasMonthTime" resultType="java.lang.Integer">
+      select 1 from tietou_same_station_frequently where month_time = #{monthTime} LIMIT 1;
+    </select>
+</mapper>

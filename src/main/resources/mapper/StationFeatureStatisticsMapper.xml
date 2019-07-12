@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.drcnet.highway.dao.StationFeatureStatisticsMapper">
+  <resultMap id="BaseResultMap" type="com.drcnet.highway.entity.StationFeatureStatistics">
+    <!--
+      WARNING - @mbg.generated
+    -->
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="ck_id" jdbcType="INTEGER" property="ckId" />
+    <result column="rk_id" jdbcType="INTEGER" property="rkId" />
+    <result column="ck" jdbcType="VARCHAR" property="ck" />
+    <result column="rk" jdbcType="VARCHAR" property="rk" />
+    <result column="total" jdbcType="INTEGER" property="total" />
+    <result column="speed_cheating" jdbcType="INTEGER" property="speedCheating" />
+    <result column="avg_speed" jdbcType="DECIMAL" property="avgSpeed" />
+    <result column="cheating_rate" jdbcType="DECIMAL" property="cheatingRate" />
+    <result column="k1_speed" jdbcType="DECIMAL" property="k1Speed" />
+    <result column="k2_speed" jdbcType="DECIMAL" property="k2Speed" />
+    <result column="k3_speed" jdbcType="DECIMAL" property="k3Speed" />
+    <result column="k4_speed" jdbcType="DECIMAL" property="k4Speed" />
+    <result column="k5_speed" jdbcType="DECIMAL" property="k5Speed" />
+    <result column="h1_speed" jdbcType="DECIMAL" property="h1Speed" />
+    <result column="h2_speed" jdbcType="DECIMAL" property="h2Speed" />
+    <result column="h3_speed" jdbcType="DECIMAL" property="h3Speed" />
+    <result column="h4_speed" jdbcType="DECIMAL" property="h4Speed" />
+    <result column="h5_speed" jdbcType="DECIMAL" property="h5Speed" />
+  </resultMap>
+    <select id="listStationSpeedInfo" resultMap="BaseResultMap">
+      select * from station_feature_statistics
+      <where>
+          1=1
+        <if test="rkId != null"> and rk_id = #{rkId}</if>
+        <if test="ckId != null"> and ck_id = #{ckId}</if>
+      </where>
+      order by speed_cheating desc
+    </select>
+</mapper>

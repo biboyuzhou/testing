@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.drcnet.highway.dao.TietouMonthStatisticMapper">
+  <resultMap id="BaseResultMap" type="com.drcnet.highway.entity.TietouMonthStatistic">
+    <!--
+      WARNING - @mbg.generated
+    -->
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="same_car_number" jdbcType="INTEGER" property="sameCarNumber" />
+    <result column="speed" jdbcType="INTEGER" property="speed" />
+    <result column="same_car_type" jdbcType="INTEGER" property="sameCarType" />
+    <result column="same_car_situation" jdbcType="INTEGER" property="sameCarSituation" />
+    <result column="short_dis_overweight" jdbcType="INTEGER" property="shortDisOverweight" />
+    <result column="long_dis_lightweight" jdbcType="INTEGER" property="longDisLightweight" />
+    <result column="diff_flagstation_info" jdbcType="INTEGER" property="diffFlagstationInfo" />
+    <result column="same_station" jdbcType="INTEGER" property="sameStation" />
+    <result column="same_time_range_again" jdbcType="INTEGER" property="sameTimeRangeAgain" />
+    <result column="min_out_in" jdbcType="INTEGER" property="minOutIn" />
+    <result column="flagstation_lost" jdbcType="INTEGER" property="flagstationLost" />
+    <result column="different_zhou" jdbcType="INTEGER" property="differentZhou" />
+    <result column="use_flag" jdbcType="TINYINT" property="useFlag" />
+    <result column="car_type" jdbcType="INTEGER" property="carType" />
+    <result column="month_time" jdbcType="INTEGER" property="monthTime" />
+  </resultMap>
+</mapper>

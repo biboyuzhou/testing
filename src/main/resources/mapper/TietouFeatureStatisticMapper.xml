@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.drcnet.highway.dao.TietouFeatureStatisticMapper">
+  <resultMap id="BaseResultMap" type="com.drcnet.highway.entity.TietouFeatureStatistic">
+    <!--
+      WARNING - @mbg.generated
+    -->
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="vlp" jdbcType="VARCHAR" property="vlp" />
+    <result column="vlp_id" jdbcType="INTEGER" property="vlpId" />
+    <result column="car_type" jdbcType="INTEGER" property="carType" />
+    <result column="same_car_number" jdbcType="INTEGER" property="sameCarNumber" />
+    <result column="speed" jdbcType="INTEGER" property="speed" />
+    <result column="low_speed" jdbcType="INTEGER" property="lowSpeed" />
+    <result column="high_speed" jdbcType="INTEGER" property="highSpeed" />
+    <result column="same_car_type" jdbcType="INTEGER" property="sameCarType" />
+    <result column="same_car_situation" jdbcType="INTEGER" property="sameCarSituation" />
+    <result column="short_dis_overweight" jdbcType="INTEGER" property="shortDisOverweight" />
+    <result column="long_dis_lightweight" jdbcType="INTEGER" property="longDisLightweight" />
+    <result column="diff_flagstation_info" jdbcType="INTEGER" property="diffFlagstationInfo" />
+    <result column="same_station" jdbcType="INTEGER" property="sameStation" />
+    <result column="same_time_range_again" jdbcType="INTEGER" property="sameTimeRangeAgain" />
+    <result column="min_out_in" jdbcType="INTEGER" property="minOutIn" />
+    <result column="flagstation_lost" jdbcType="INTEGER" property="flagstationLost" />
+    <result column="different_zhou" jdbcType="INTEGER" property="differentZhou" />
+    <result column="total" jdbcType="INTEGER" property="total" />
+    <result column="transit_times" jdbcType="INTEGER" property="transitTimes" />
+    <result column="is_free_car" jdbcType="TINYINT" property="isFreeCar" />
+  </resultMap>
+  <resultMap id="TietouScoreResultMap" type="com.drcnet.highway.entity.TietouFeatureStatisticGyh">
+    <id column="id" jdbcType="INTEGER" property="id"/>
+    <result column="month_time" jdbcType="INTEGER" property="monthTime"/>
+    <result column="vlp_id" jdbcType="INTEGER" property="vlpId"/>
+    <result column="vlp" jdbcType="VARCHAR" property="vlp"/>
+    <result column="cheating" jdbcType="INTEGER" property="cheating"/>
+    <result column="violation" jdbcType="INTEGER" property="violation"/>
+    <result column="score" jdbcType="INTEGER" property="score"/>
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime"/>
+    <result column="update_time" jdbcType="TIMESTAMP" property="updateTime"/>
+    <result column="black_flag" jdbcType="TINYINT" property="blackFlag"/>
+  </resultMap>
+  <update id="updateCarTypeById">
+    update tietou_feature_statistic set car_type = #{carType} where id = #{id}
+  </update>
+  <select id="listAllRiskData" resultMap="BaseResultMap">
+    select GREATEST(same_station,speed,same_car_type,same_car_situation,short_dis_overweight,flagstation_lost,same_time_range_again,min_out_in
+      ,long_dis_lightweight,diff_flagstation_info) cheating
+            ,GREATEST(same_car_number,different_zhou) violation,score,vlp ,vlp_id
+    from tietou_feature_statistic where score &gt;0
+  </select>
+  <select id="listByMonthTime" resultMap="BaseResultMap">
+    select vlp,vlp_id,car_type,same_car_number,speed,same_car_type,same_car_situation,short_dis_overweight
+            ,long_dis_lightweight,diff_flagstation_info,flagstation_lost,same_station,same_time_range_again,min_out_in,different_zhou,total,transit_times
+    from tietou_feature_statistic_month where month_time = #{monthTime}
+  </select>
+  <select id="selectMaxId" resultType="java.lang.Integer">
+    select max(id) from tietou_feature_statistic
+  </select>
+  <select id="listVlpIdByIdPeriod" resultMap="BaseResultMap">
+    select id,vlp_id from tietou_feature_statistic where id between #{begin} and #{end}
+  </select>
+    <select id="listOver2SameCarNumVlpIds" resultType="java.lang.Integer">
+      select vlp_id from tietou_feature_statistic where same_car_number &gt; 1
+    </select>
+
+  <insert id="insertBatch"  parameterType="java.util.List">
+    insert into tietou_feature_statistic_test (
+    vlp,
+    vlp_id,
+    same_car_number,
+    speed,
+    same_car_type,
+    same_car_situation,
+    short_dis_overweight,
+    long_dis_lightweight,
+    diff_flagstation_info,
+    same_station,
+    same_time_range_again,
+    min_out_in,
+    flagstation_lost,
+    different_zhou,
+    label,
+    score,
+    car_type,
+    use_flag,
+    total
+    )
+    values
+    <foreach collection="list" item="item" index="index" separator="," >
+      (
+      #{item.vlp,jdbcType=VARCHAR},
+      #{item.vlpId,jdbcType=INTEGER},
+      #{item.sameCarNumber,jdbcType=INTEGER},
+      #{item.speed,jdbcType=INTEGER},
+      #{item.sameCarType,jdbcType=INTEGER},
+      #{item.sameCarSituation,jdbcType=INTEGER},
+      #{item.shortDisOverweight,jdbcType=INTEGER},
+      #{item.longDisLightweight,jdbcType=INTEGER},
+      #{item.diffFlagstationInfo,jdbcType=INTEGER},
+      #{item.sameStation,jdbcType=INTEGER},
+      #{item.sameTimeRangeAgain,jdbcType=INTEGER},
+      #{item.minOutIn,jdbcType=INTEGER},
+      #{item.flagstationLost,jdbcType=INTEGER},
+      #{item.differentZhou,jdbcType=INTEGER},
+      #{item.label,jdbcType=SMALLINT},
+      #{item.score,jdbcType=INTEGER},
+      #{item.carType,jdbcType=SMALLINT},
+      #{item.useFlag,jdbcType=TINYINT},
+      #{item.total,jdbcType=INTEGER}
+      )
+    </foreach>
+  </insert>
+
+  <update id="updatetransitTimesByBatch" >
+
+    update tietou_feature_statistic set transit_times =
+    <foreach collection="list" item="item" index="index" separator=" " open="case ID" close="end">
+      when #{item.id} then #{item.count}
+    </foreach>
+    where ID in
+    <foreach collection="list" index="index" item="item" separator="," open="(" close=")">
+      #{item.id}
+    </foreach>
+
+  </update>
+  <select id="listFreeCar" resultMap="BaseResultMap">
+    select vlp_id,vlp,car_type from tietou_feature_statistic where is_free_car = 1
+  </select>
+  <update id="updateIsFreeCar" >
+    update tietou_feature_statistic t set t.is_free_car = 1
+    where EXISTS
+    (select 1 from
+      (select COUNT(lastmoney > 0 or null) fee, count(1), COUNT(lastmoney > 0 or null)/COUNT(1) rate,vlp_id,vlp from tietou
+        where id BETWEEN 1 and #{maxId} GROUP BY vlp_id having rate &lt; 0.05 and count(1) > 10) r
+    where r.vlp_id = t.vlp_id)
+  </update>
+
+  <update id="copyScore2Static" >
+    update tietou_feature_statistic s
+      set cheating = (select cheating from tietou_feature_statistic_gyh g where s.vlp_id = g.vlp_id),
+		  violation = (select violation from tietou_feature_statistic_gyh g where s.vlp_id = g.vlp_id),
+		  label = (select label from tietou_feature_statistic_gyh g where s.vlp_id = g.vlp_id),
+		  score = (select score from tietou_feature_statistic_gyh g where s.vlp_id = g.vlp_id)
+  </update>
+</mapper>

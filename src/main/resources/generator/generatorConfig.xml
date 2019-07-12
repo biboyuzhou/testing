@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE generatorConfiguration
+        PUBLIC "-//mybatis.org//DTD MyBatis Generator Configuration 1.0//EN"
+        "http://mybatis.org/dtd/mybatis-generator-config_1_0.dtd">
+<generatorConfiguration>
+	<!-- 引入 jdbc.properties -->
+	<properties resource="generator/jdbc.properties" />
+	<!-- MyBatis3Simple：不生成 Example相关类及方法 -->
+	<context id="Mysql" targetRuntime="MyBatis3Simple"
+		defaultModelType="flat">
+		<property name="beginningDelimiter" value="`" />
+		<property name="endingDelimiter" value="`" />
+		<!-- 指定生成 Mapper 的继承模板 -->
+		<plugin type="tk.mybatis.mapper.generator.MapperPlugin">
+			<property name="mappers" value="com.drcnet.highway.util.templates.MyMapper" />
+		</plugin>
+		<!-- 生成 JavaBean 对象重写 toString方法 -->
+		<plugin type="org.mybatis.generator.plugins.ToStringPlugin" />
+		<!-- 生成 JavaBean 对象继承 Serializable 类 -->
+		<plugin type="org.mybatis.generator.plugins.SerializablePlugin" />
+		<!-- 生成 JavaBean 对象重写 equals 和 hashCode 方法 -->
+		<!-- <plugin type="org.mybatis.generator.plugins.EqualsHashCodePlugin" 
+			/> -->
+		<!-- jdbc 连接配置 -->
+		<jdbcConnection driverClass="${jdbc.driverClassName}"
+			connectionURL="${jdbc.url}" userId="${jdbc.username}" password="${jdbc.password}" />
+		<!--实体放置目录 -->
+		<javaModelGenerator targetPackage="com.drcnet.highway.entity"
+			targetProject="src/main/java">
+			<property name="enableSubPackages" value="true" />
+			<property name="trimStrings" value="true" />
+		</javaModelGenerator>
+		<!--mybatis映射xml文件放置位置 -->
+		<sqlMapGenerator targetPackage="mapper" targetProject="src/main/resources">
+			<property name="enableSubPackages" value="true" />
+		</sqlMapGenerator>
+		<!--mapper接口 -->
+		<javaClientGenerator targetPackage="com.drcnet.highway.dao"
+			targetProject="src/main/java" type="XMLMAPPER">
+			<property name="enableSubPackages" value="true" />
+		</javaClientGenerator>
+		<!--如果有多个表，复制这一段，改下表名即可 -->
+
+		<!--<table tableName="enterprise_indicator_rank">
+			<generatedKey column="id" sqlStatement="select replace(uuid(), '-', '')" identity="true"/>
+		</table>-->
+		<!--<table tableName="change_car_no_data">
+			<generatedKey column="id" sqlStatement="Mysql" identity="true"/>
+		</table>
+		<table tableName="differ_car_type_data">
+			<generatedKey column="id" sqlStatement="Mysql" identity="true"/>
+		</table>
+		<table tableName="differ_in_out_frequence_data">
+			<generatedKey column="id" sqlStatement="Mysql" identity="true"/>
+		</table>
+		<table tableName="same_station_foli_data">
+			<generatedKey column="id" sqlStatement="Mysql" identity="true"/>
+		</table>
+		<table tableName="same_station_foli_original_data">
+			<generatedKey column="id" sqlStatement="Mysql" identity="true"/>
+		</table>-->
+		<!--<table tableName="in_out_station_original_data_map">-->
+			<!--<generatedKey column="id" sqlStatement="Mysql" identity="true"/>-->
+		<!--</table>-->
+		<!--<table tableName="car_no_dic">-->
+			<!--<generatedKey column="id" sqlStatement="Mysql" identity="true"/>-->
+		<!--</table>-->
+		<!--<table tableName="station_dic">-->
+			<!--<generatedKey column="id" sqlStatement="Mysql" identity="true"/>-->
+		<!--</table>-->
+		<table tableName="tietou_same_station_frequently201811">
+			<generatedKey column="id" sqlStatement="Mysql" identity="true"/>
+		</table>
+	</context>
+</generatorConfiguration>

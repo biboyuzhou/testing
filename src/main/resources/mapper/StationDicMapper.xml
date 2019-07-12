@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.drcnet.highway.dao.StationDicMapper">
+  <resultMap id="BaseResultMap" type="com.drcnet.highway.entity.dic.StationDic">
+    <!--
+      WARNING - @mbg.generated
+    -->
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="station_name" jdbcType="VARCHAR" property="stationName" />
+    <result column="coordinate" jdbcType="VARCHAR" property="coordinate" />
+    <result column="region_id" jdbcType="INTEGER" property="regionId" />
+  </resultMap>
+    <select id="select2ndRound" resultMap="BaseResultMap">
+      select * from station_dic where mark = 1
+    </select>
+</mapper>

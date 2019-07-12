@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.drcnet.highway.dao.TietouFeatureExtractionMapper">
+  <resultMap id="BaseResultMap" type="com.drcnet.highway.entity.TietouFeatureExtraction">
+    <!--
+      WARNING - @mbg.generated
+    -->
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="same_station" jdbcType="INTEGER" property="sameStation" />
+    <result column="speed" jdbcType="INTEGER" property="speed" />
+    <result column="high_speed" jdbcType="INTEGER" property="highSpeed" />
+    <result column="low_speed" jdbcType="INTEGER" property="lowSpeed" />
+    <result column="same_car_number" jdbcType="INTEGER" property="sameCarNumber" />
+    <result column="same_car_type" jdbcType="INTEGER" property="sameCarType" />
+    <result column="same_car_situation" jdbcType="INTEGER" property="sameCarSituation" />
+    <result column="short_dis_overweight" jdbcType="INTEGER" property="shortDisOverweight" />
+    <result column="long_dis_lightweight" jdbcType="INTEGER" property="longDisLightweight" />
+    <result column="different_zhou" jdbcType="INTEGER" property="differentZhou" />
+    <result column="diff_flagstation_info" jdbcType="INTEGER" property="diffFlagstationInfo" />
+    <result column="same_time" jdbcType="INTEGER" property="sameTime" />
+    <result column="label" jdbcType="INTEGER" property="label" />
+    <result column="score" jdbcType="INTEGER" property="score" />
+    <result column="flagstation_lost" jdbcType="INTEGER" property="flagstationLost" />
+    <result column="min_out_in" jdbcType="INTEGER" property="minOutIn" />
+    <result column="same_time_range_again" jdbcType="INTEGER" property="sameTimeRangeAgain" />
+    <result column="same_route_mark" jdbcType="VARCHAR" property="sameRouteMark" />
+  </resultMap>
+    <update id="updateSameTimeRangeByIds">
+        update tietou_feature_extraction set same_time_range_again = 1 where id in
+        <foreach collection="ids" item="item" open="(" close=")" separator=",">
+            #{item}
+        </foreach>
+        and same_time_range_again = 0
+    </update>
+  <update id="updateNull2Zero">
+    update ${extractionName} set same_time_range_again = 0 where same_time_range_again is null ;
+  </update>
+  <update id="updateSameCarOutInFlag">
+    update
+    <choose>
+      <when test="extractionName == null">
+        tietou_feature_extraction
+      </when>
+      <otherwise>
+        ${extractionName}
+      </otherwise>
+    </choose>
+    set min_out_in = 1 where id in
+    <foreach collection="idSet" item="item" open="(" close=")" separator=",">
+      #{item}
+    </foreach>
+
+  </update>
+  <update id="updateSameCarOutInFlagOne">
+    update tietou_feature_extraction set min_out_in = 1 where id = #{id}
+  </update>
+  <update id="updateSameRouteMark">
+    update ${extractionName} set same_route_mark = #{sameRouteMark} where id = #{id}
+  </update>
+  <update id="updateSameRouteMarkAndLabel">
+    update tietou_feature_extraction set same_time_range_again = 1,same_route_mark = #{sameRouteMark} where id = #{id}
+  </update>
+  <update id="replaceSameCarNumByVlpId">
+    update tietou_feature_extraction set same_car_number = 1
+    where id in
+   (select id from
+     (select id from tietou t where id in
+          (select id from tietou_feature_extraction where month_time = #{monthTime} and same_car_number = 0)
+                                and EXISTS (select 1 from car_dic where t.vlp_id = id and use_flag = 0) )r)
+  </update>
+  <update id="replaceSameCarNumByEnVlpId">
+    update tietou_feature_extraction set same_car_number = 1
+    where id in
+          (select id from
+            (select id from tietou t where id in
+                     (select id from tietou_feature_extraction where month_time = #{monthTime} and same_car_number = 0)
+                 and EXISTS (select 1 from car_dic where t.envlp_id = id and use_flag = 0) )r)
+  </update>
+    <select id="listAllRiskOiginalData" resultMap="BaseResultMap">
+      select * from ${featureTableName} where score &gt; 0
+  </select>
+  <select id="listSameRouteCarId" resultType="java.lang.Integer">
+      select distinct car_num_id from ${extractionName} where same_time_range_again = 1
+  </select>
+  <select id="listAllSameRouteByCar" resultType="com.drcnet.highway.entity.TietouOrigin">
+    select tf.id,t.entime,t.extime from ${originName} t inner join ${extractionName} tf on t.id = tf.id
+    where t.vlp_id = #{vlpId} and tf.same_time_range_again = 1
+  </select>
+
+  <select id="listZhouShuDiffId" resultType="java.lang.Integer">
+      select id from tietou_feature_extraction where id between #{begin} and #{end} and different_zhou = 1
+  </select>
+
+  <update id="updateExtractionZhouShuDiff">
+    update tietou_feature_extraction set different_zhou = 0 where id IN
+    <foreach collection="idList" item="id" index="index" open="(" close=")" separator=",">
+      #{id}
+    </foreach>
+  </update>
+  <update id="updateSameCarNumById">
+    update tietou_feature_extraction set same_car_number = #{flag} where id = #{id}
+  </update>
+
+  <select id="listExtractionByCarId" resultMap="BaseResultMap">
+    select same_route_mark from tietou_feature_extraction where vlp_id = #{carId} and same_route_mark is not null
+  </select>
+
+</mapper>

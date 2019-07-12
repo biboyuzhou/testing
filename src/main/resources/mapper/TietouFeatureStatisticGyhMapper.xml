@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.drcnet.highway.dao.TietouFeatureStatisticGyhMapper">
+    <resultMap id="BaseResultMap" type="com.drcnet.highway.entity.TietouFeatureStatisticGyh">
+        <!--
+          WARNING - @mbg.generated
+        -->
+        <id column="id" jdbcType="INTEGER" property="id"/>
+        <result column="month_time" jdbcType="INTEGER" property="monthTime"/>
+        <result column="vlp_id" jdbcType="INTEGER" property="vlpId"/>
+        <result column="vlp" jdbcType="VARCHAR" property="vlp"/>
+        <result column="cheating" jdbcType="DECIMAL" property="cheating"/>
+        <result column="violation" jdbcType="DECIMAL" property="violation"/>
+        <result column="score" jdbcType="DECIMAL" property="score"/>
+        <result column="create_time" jdbcType="TIMESTAMP" property="createTime"/>
+        <result column="update_time" jdbcType="TIMESTAMP" property="updateTime"/>
+        <result column="black_flag" jdbcType="TINYINT" property="blackFlag"/>
+    </resultMap>
+    <update id="updateSecondMarkByVlpIds">
+        update tietou_feature_statistic_copy3_gyh set second_flag = 2 where vlp_id in
+        <foreach collection="ids" item="item" open="(" close=")" separator=",">
+            #{item}
+        </foreach>
+    </update>
+    <select id="listCheatingCar" resultMap="BaseResultMap">
+        select ts.vlp,ts.vlp_id,ts.cheating,ts.violation,ts.score,false black_flag
+        from tietou_feature_statistic ts
+        where ts.is_free_car = 0
+        <!--<choose>
+            <when test="carType == 0">
+                and second_flag = 1
+            </when>
+            <when test="carType == 1">
+                and second_flag = 2
+            </when>
+            <when test="carType == -1">
+                and second_flag = 1
+            </when>
+            <otherwise> and 1=2</otherwise>
+        </choose>-->
+        <choose>
+            <when test="carType == 0">
+                and car_type = 0
+            </when>
+            <when test="carType == 1">
+                and car_type = 1
+            </when>
+            <when test="carType == -1">
+                and 1 = 1
+            </when>
+            <otherwise> and 1=2</otherwise>
+        </choose>
+        <choose>
+              <when test="riskFlag == null or riskFlag == 0">
+                  and ts.score &gt; 60
+              </when>
+              <when test="riskFlag == 1">
+                  and ts.score between 40 and 60
+              </when>
+              <otherwise>
+                  and ts.score between 20 and 39.9
+              </otherwise>
+          </choose>
+        <choose>
+            <when test="fields != null and fields.size != 0">
+                <foreach collection="fields" item="item" open="order by " close=" desc" separator="+">
+                    ${item}
+                </foreach>
+            </when>
+            <otherwise>
+                union all
+                (select car_no vlp,car_no_id vlp_id,cheating,violation,score,true black_flag from tietou_blacklist where use_flag = true)
+                ORDER BY score desc,cheating+violation desc</otherwise>
+        </choose>
+
+        <!--<choose>
+            <when test="flag == 1">
+                ORDER BY diff_flagstation_info desc
+            </when>
+            <when test="flag == 2">
+                ORDER BY short_dis_overweight desc
+            </when>
+            <when test="flag == 3">
+                ORDER BY long_dis_lightweight desc
+            </when>
+            <when test="flag == 4">
+                ORDER BY speed desc
+            </when>
+            <when test="flag == 5">
+                ORDER BY same_station desc
+            </when>
+            <when test="flag == 6">
+                ORDER BY same_car_type desc
+            </when>
+            <when test="flag == 7">
+                ORDER BY same_car_situation desc
+            </when>
+            <when test="flag == 8">
+                ORDER BY different_zhou desc
+            </when>
+            <when test="flag == 9">
+                ORDER BY same_car_number desc
+            </when>
+            <when test="flag == 10">
+                ORDER BY min_out_in desc
+            </when>
+            <when test="flag == 11">
+                ORDER BY same_time_range_again desc
+            </when>
+            <when test="flag == 12">
+                ORDER BY flagstation_lost desc
+            </when>
+            <otherwise>
+                  union all
+                (select car_no vlp,car_no_id vlp_id,cheating,violation,score,true black_flag from tietou_blacklist where use_flag = true)
+                ORDER BY score desc,cheating+violation desc</otherwise>
+        </choose>
+-->
+
+    </select>
+    <select id="getRiskProportion" resultType="com.drcnet.highway.dto.RiskPeriodAmount">
+        select COUNT(case when ts.score &lt; 20 then 1 ELSE NULL end) non,
+        COUNT(case when ts.score BETWEEN 20 and 39.9 then 1 ELSE NULL end) low,
+        COUNT(case when ts.score BETWEEN 40 and 60 then 1 ELSE NULL end) middle,
+        COUNT(case when ts.score BETWEEN 60.01 and 100 then 1 ELSE NULL end) high
+        from tietou_feature_statistic_gyh ts
+        <where>
+            1=1
+            <if test="carType == 0">
+                and ts.car_type = 0
+            </if>
+            <if test="carType == 1">
+                and ts.car_type = 1
+            </if>
+        </where>
+    </select>
+    <select id="selectByMonthAndCarId" resultMap="BaseResultMap">
+        select * from tietou_feature_statistic_gyh where vlp_id = #{carNoId}
+    </select>
+
+    <select id="listByPeriod" resultMap="BaseResultMap">
+        select vlp,vlp_id,score from tietou_feature_statistic_gyh where car_type = 1 order by score desc limit 0,4000
+    </select>
+</mapper>

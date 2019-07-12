@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.drcnet.highway.dao.TietouFeatureExtractionStandardScoreMapper">
+  <resultMap id="BaseResultMap" type="com.drcnet.highway.entity.TietouFeatureExtractionStandardScore">
+    <!--
+      WARNING - @mbg.generated
+    -->
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="car_num" jdbcType="VARCHAR" property="carNum" />
+    <result column="car_num_id" jdbcType="INTEGER" property="carNumId" />
+    <result column="month_time" jdbcType="INTEGER" property="monthTime" />
+    <result column="same_car_number" jdbcType="DECIMAL" property="sameCarNumber" />
+    <result column="speed" jdbcType="DECIMAL" property="speed" />
+    <result column="same_car_type" jdbcType="DECIMAL" property="sameCarType" />
+    <result column="same_car_situation" jdbcType="DECIMAL" property="sameCarSituation" />
+    <result column="short_dis_overweight" jdbcType="DECIMAL" property="shortDisOverweight" />
+    <result column="long_dis_lightweight" jdbcType="DECIMAL" property="longDisLightweight" />
+    <result column="diff_flagstation_info" jdbcType="DECIMAL" property="diffFlagstationInfo" />
+    <result column="same_station" jdbcType="DECIMAL" property="sameStation" />
+    <result column="same_time_range_again" jdbcType="DECIMAL" property="sameTimeRangeAgain" />
+    <result column="min_out_in" jdbcType="DECIMAL" property="minOutIn" />
+    <result column="flagstation_lost" jdbcType="DECIMAL" property="flagstationLost" />
+    <result column="different_zhou" jdbcType="DECIMAL" property="differentZhou" />
+    <result column="label" jdbcType="DECIMAL" property="label" />
+    <result column="score" jdbcType="DECIMAL" property="score" />
+  </resultMap>
+    <select id="listCheatingAndViolationData" resultType="com.drcnet.highway.entity.TietouFeatureStatisticGyh">
+      select GREATEST(same_station,speed,same_car_type,same_car_situation,short_dis_overweight,flagstation_lost,same_time_range_again,min_out_in
+               ,long_dis_lightweight,diff_flagstation_info) cheating
+              ,GREATEST(same_car_number,different_zhou) violation,score,vlp,vlp_id vlpId
+      from tietou_feature_statistic_gyh where score &gt;0
+    </select>
+  <select id="getMaxViolationScore"
+          resultMap="BaseResultMap">
+    select same_station,speed,same_car_type,same_car_situation,short_dis_overweight,long_dis_lightweight,same_car_number
+           ,different_zhou,diff_flagstation_info,flagstation_lost,same_time_range_again,min_out_in,score
+    from tietou_feature_statistic_gyh where vlp_id = #{carNumId}
+  </select>
+</mapper>

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.drcnet.highway.dao.TietouOriginal2019Mapper">
+  <resultMap id="BaseResultMap" type="com.drcnet.highway.entity.TietouOriginal2019">
+    <!--
+      WARNING - @mbg.generated
+    -->
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="entime" jdbcType="VARCHAR" property="entime" />
+    <result column="rk" jdbcType="VARCHAR" property="rk" />
+    <result column="envlp" jdbcType="VARCHAR" property="envlp" />
+    <result column="envt" jdbcType="VARCHAR" property="envt" />
+    <result column="envc" jdbcType="VARCHAR" property="envc" />
+    <result column="extime" jdbcType="VARCHAR" property="extime" />
+    <result column="ck" jdbcType="VARCHAR" property="ck" />
+    <result column="vlp" jdbcType="VARCHAR" property="vlp" />
+    <result column="vc" jdbcType="VARCHAR" property="vc" />
+    <result column="vt" jdbcType="VARCHAR" property="vt" />
+    <result column="exlane" jdbcType="VARCHAR" property="exlane" />
+    <result column="oper" jdbcType="VARCHAR" property="oper" />
+    <result column="lastmoney" jdbcType="VARCHAR" property="lastmoney" />
+    <result column="freemoney" jdbcType="VARCHAR" property="freemoney" />
+    <result column="totalweight" jdbcType="VARCHAR" property="totalweight" />
+    <result column="axlenum" jdbcType="VARCHAR" property="axlenum" />
+    <result column="tolldistance" jdbcType="VARCHAR" property="tolldistance" />
+    <result column="card" jdbcType="VARCHAR" property="card" />
+    <result column="flagstationinfo" jdbcType="VARCHAR" property="flagstationinfo" />
+    <result column="realflagstationinfo" jdbcType="VARCHAR" property="realflagstationinfo" />
+    <result column="inv" jdbcType="VARCHAR" property="inv" />
+  </resultMap>
+
+  <select id="listStationFlagByPeroid" resultMap="BaseResultMap">
+    select * from tietou_original_2019 where id between #{begin} and #{end}
+  </select>
+
+  <select id="selectMaxId" resultType="java.lang.Integer">
+    select max(id) from tietou_original_2019
+  </select>
+</mapper>

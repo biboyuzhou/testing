@@ -1,0 +1,678 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.drcnet.highway.dao.TietouMapper">
+    <resultMap id="BaseResultMap" type="com.drcnet.highway.entity.TietouOrigin">
+        <!--
+          WARNING - @mbg.generated
+        -->
+        <id column="id" jdbcType="INTEGER" property="id"/>
+        <result column="entime" jdbcType="TIMESTAMP" property="entime"/>
+        <result column="rk" jdbcType="VARCHAR" property="rk"/>
+        <result column="envlp" jdbcType="VARCHAR" property="envlp"/>
+        <result column="envt" jdbcType="INTEGER" property="envt"/>
+        <result column="envc" jdbcType="INTEGER" property="envc"/>
+        <result column="extime" jdbcType="TIMESTAMP" property="extime"/>
+        <result column="ck" jdbcType="VARCHAR" property="ck"/>
+        <result column="vlp" jdbcType="VARCHAR" property="vlp"/>
+        <result column="vlp_id" jdbcType="INTEGER" property="vlpId"/>
+        <result column="envlp_id" jdbcType="INTEGER" property="envlpId"/>
+        <result column="rk_id" jdbcType="INTEGER" property="rkId"/>
+        <result column="ck_id" jdbcType="INTEGER" property="ckId"/>
+        <result column="vc" jdbcType="INTEGER" property="vc"/>
+        <result column="vt" jdbcType="INTEGER" property="vt"/>
+        <result column="exlane" jdbcType="VARCHAR" property="exlane"/>
+        <result column="oper" jdbcType="VARCHAR" property="oper"/>
+        <result column="lastmoney" jdbcType="DECIMAL" property="lastmoney"/>
+        <result column="freemoney" jdbcType="DECIMAL" property="freemoney"/>
+        <result column="totalweight" jdbcType="INTEGER" property="totalweight"/>
+        <result column="axlenum" jdbcType="INTEGER" property="axlenum"/>
+        <result column="tolldistance" jdbcType="INTEGER" property="tolldistance"/>
+        <result column="card" jdbcType="VARCHAR" property="card"/>
+        <result column="flagstationinfo" jdbcType="VARCHAR" property="flagstationinfo"/>
+        <result column="realflagstationinfo" jdbcType="VARCHAR" property="realflagstationinfo"/>
+        <result column="inv" jdbcType="VARCHAR" property="inv"/>
+        <result column="time" jdbcType="BIGINT" property="time"/>
+        <result column="weight_limitation" jdbcType="INTEGER" property="weightLimitation"/>
+        <result column="mark" jdbcType="TINYINT" property="mark"/>
+        <result column="month_time" jdbcType="VARCHAR" property="monthTime"/>
+        <result column="same_route_mark" jdbcType="VARCHAR" property="sameRouteMark"/>
+        <result column="speed" jdbcType="INTEGER" property="speed"/>
+    </resultMap>
+    <resultMap id="TurnoverResultMap" type="com.drcnet.highway.dto.TurnoverStationDto">
+        <result column="out_amount" jdbcType="VARCHAR" property="outAmount"/>
+        <result column="in_amount" jdbcType="VARCHAR" property="inAmount"/>
+        <result column="station_name" jdbcType="VARCHAR" property="stationName"/>
+        <result column="station_id" jdbcType="VARCHAR" property="stationId"/>
+    </resultMap>
+    <resultMap id="ViolationResultMap" type="com.drcnet.highway.dto.ViolationScore">
+        <result column="station_id" jdbcType="VARCHAR" property="differentZhou"/>
+        <result column="station_id" jdbcType="VARCHAR" property="diffFlagstationInfo"/>
+        <result column="station_id" jdbcType="VARCHAR" property="longDisLightweight"/>
+        <result column="station_id" jdbcType="VARCHAR" property="speed"/>
+        <result column="station_id" jdbcType="VARCHAR" property="shortDisOverweight"/>
+        <result column="station_id" jdbcType="VARCHAR" property="sameStation"/>
+        <result column="station_id" jdbcType="VARCHAR" property="sameCarType"/>
+        <result column="station_id" jdbcType="VARCHAR" property="sameCarSituation"/>
+        <result column="station_id" jdbcType="VARCHAR" property="sameCarNumber"/>
+    </resultMap>
+
+    <update id="updateMark">
+        update tietou set mark = #{tietou.mark} where id = #{tietou.id}
+    </update>
+
+    <select id="listAxleNumDifferIds" resultType="java.lang.Integer">
+        select vlp_id
+        from tietou
+        GROUP BY vlp
+        HAVING COUNT(DISTINCT axlenum) > 1
+    </select>
+    <select id="listOutStation" resultMap="TurnoverResultMap">
+        select COUNT(*) out_amount,ck station_name,ck_id station_id
+        from tietou
+        where vlp_id = #{carId}
+        GROUP BY ck_id
+    </select>
+    <select id="listInStation" resultMap="TurnoverResultMap">
+        select COUNT(*) in_amount,rk station_name,rk_id station_id
+        from tietou
+        where vlp_id = #{carId}
+        GROUP BY rk_id
+    </select>
+    <select id="listInStationDetail" resultMap="TurnoverResultMap">
+        select COUNT(*) in_amount,rk station_name,rk_id station_id
+        from tietou
+        where vlp_id = #{carId}
+          and ck_id = #{stationId}
+        GROUP BY rk_id
+    </select>
+    <select id="selectCarType" resultType="java.lang.String">
+        select car_type
+        from
+            (select case
+                        when vc &lt; 10 THEN 'coach'
+                        when vc &gt;= 10 THEN 'trucks'
+                        ELSE 'unknown' end car_type
+             from ${tableName}
+             where vlp_id = #{carId}) res
+        GROUP BY car_type
+        ORDER BY COUNT(*) desc
+        LIMIT 1
+    </select>
+    <select id="selectCarTypeCode" resultType="java.lang.Integer">
+      select  vc from
+          (select vc,count(*) amount from ${tableName} where vlp_id = #{carId} group by vc) res order by amount desc limit 1
+    </select>
+
+    <select id="getMaxViolationScore" resultType="com.drcnet.highway.dto.ViolationScore">
+        select
+            MAX(same_station)          sameStation,
+            MAX(speed)                 speed,
+            MAX(same_car_number)       sameCarNumber,
+            MAX(same_car_type)         sameCarType
+                ,
+            MAX(same_car_situation)    sameCarSituation,
+            MAX(short_dis_overweight)  shortDisOverweight,
+            MAX(long_dis_lightweight)  longDisLightweight
+                ,
+            MAX(different_zhou)        differentZhou,
+            MAX(diff_flagstation_info) diffFlagstationInfo,
+            MAX(score) score
+        from ${tableName} t
+                 LEFT JOIN ${featureTableName} tfs on t.id = tfs.id
+        WHERE t.vlp_id = #{carId}
+
+    </select>
+    <select id="listPeriodViolationAmount" resultType="com.drcnet.highway.dto.PeriodAmountDto">
+        select DATE_FORMAT(t.extime,'%Y%m') period,COUNT(*) amount from tietou t LEFT JOIN tietou_feature_extraction tfe on t.id = tfe.id
+        where t.vlp_id = #{carId}
+        <choose>
+
+            <when test="type == 1">
+                and tfe.diff_flagstation_info = 1
+            </when>
+            <when test="type == 2">
+                and tfe.short_dis_overweight = 1
+            </when>
+            <when test="type == 3">
+                and tfe.long_dis_lightweight = 1
+            </when>
+            <when test="type == 4">
+                and tfe.speed = 1
+            </when>
+            <when test="type == 5">
+                and tfe.same_station = 1
+            </when>
+            <when test="type == 6">
+                and tfe.same_car_type = 0
+            </when>
+            <when test="type == 7">
+                and tfe.same_car_situation = 0
+            </when>
+            <when test="type == 8">
+                and tfe.different_zhou = 1
+            </when>
+            <when test="type == 9">
+                and tfe.same_car_number = 0
+            </when>
+            <when test="type == 10">
+                and tfe.min_out_in = 1
+            </when>
+            <when test="type == 11">
+                and tfe.same_time_range_again = 1
+            </when>
+            <when test="type == 12">
+                and tfe.flagstation_lost = 1
+            </when>
+            <otherwise> and 1=2</otherwise>
+        </choose>
+        GROUP BY DATE_FORMAT(t.extime,'%Y%m')
+    </select>
+    <select id="listRiskInOutDetail" resultMap="BaseResultMap">
+        select t.id,t.entime,t.extime,t.envlp_id,t.vlp_id,t.rk,t.ck,t.rk_id,t.ck_id,t.flagstationinfo,t.realflagstationinfo,t.tolldistance,oper,card
+               ,t.tolldistance/TIMESTAMPDIFF(second,t.entime,t.extime)*3.6 speed
+               ,t.weight_limitation,t.axlenum,t.envlp,t.vlp,envc,vc,envt,vt,totalweight,lastmoney,freemoney
+               <if test="code == 11">
+                   ,(select same_route_mark from tietou_feature_extraction where id = t.id) same_route_mark
+               </if>
+        from tietou t
+          where id in (select id from tietou_feature_extraction tfe where vlp_id = #{carId}
+        <choose>
+            <when test="code == 1">
+                and tfe.diff_flagstation_info = 1
+            </when>
+            <when test="code == 2">
+                and tfe.short_dis_overweight = 1
+            </when>
+            <when test="code == 3">
+                and tfe.long_dis_lightweight = 1
+            </when>
+            <when test="code == 4">
+                and tfe.speed = 1
+            </when>
+            <when test="code == 5">
+                and tfe.same_station = 1
+            </when>
+            <when test="code == 6">
+                and tfe.same_car_type = 0
+            </when>
+            <when test="code == 7">
+                and tfe.same_car_situation = 0
+            </when>
+            <when test="code == 8">
+                and tfe.different_zhou = 1
+            </when>
+            <when test="code == 9">
+                and tfe.same_car_number = 0
+            </when>
+            <when test="code == 10">
+                and tfe.min_out_in = 1
+            </when>
+            <when test="code == 11">
+                and tfe.same_time_range_again = 1
+                order by same_route_mark
+            </when>
+            <when test="code == 12">
+                and tfe.flagstation_lost = 1
+            </when>
+            <when test="code == 13">
+                and tfe.high_speed = 1
+            </when>
+            <when test="code == 14">
+                and tfe.low_speed = 1
+            </when>
+            <otherwise> and 1=2</otherwise>
+        </choose>)
+
+    </select>
+    <select id="getRiskAmount" resultType="com.drcnet.highway.dto.RiskAmountDto">
+        select COUNT(diff_flagstation_info) diffFlagstationInfo,COUNT(short_dis_overweight) shortDisOverweight
+        ,COUNT(long_dis_lightweight) longDisLightweight,COUNT(speed) speed, COUNT(same_station) sameStation
+        ,COUNT(same_car_type) sameCarType,COUNT(same_car_situation) sameCarSituation
+        ,COUNT(different_zhou) differentZhou,COUNT(same_car_number) sameCarNumber
+        ,COUNT(flagstation_lost) flagstationLost
+        ,(select COUNT(*) from tietou_same_station_frequently where vlp_id = #{carId}) minOutIn
+        ,COUNT(same_time_range_again) sameTimeRangeAgain, count(high_speed) highSpeed, count(low_speed) lowSpeed
+        from
+        (select
+        CASE WHEN tfe.diff_flagstation_info = 1 THEN 1 ELSE NULL end diff_flagstation_info,
+        CASE WHEN tfe.short_dis_overweight = 1 THEN 1 ELSE NULL end short_dis_overweight,
+        CASE WHEN tfe.long_dis_lightweight = 1 THEN 1 ELSE NULL end long_dis_lightweight,
+        CASE WHEN tfe.speed = 1 THEN 1 ELSE NULL end speed,
+        CASE WHEN tfe.same_station = 1 THEN 1 ELSE NULL end same_station,
+        CASE WHEN tfe.same_car_type = 0 THEN 1 ELSE NULL end same_car_type,
+        CASE WHEN tfe.same_car_situation = 0 THEN 1 ELSE NULL end same_car_situation,
+        CASE WHEN tfe.different_zhou = 1 THEN 1 ELSE NULL end different_zhou,
+        CASE WHEN tfe.same_car_number = 0 THEN 1 ELSE NULL end same_car_number,
+        CASE WHEN tfe.flagstation_lost = 1 THEN 1 ELSE NULL end flagstation_lost,
+        CASE WHEN tfe.same_time_range_again = 1 THEN 1 ELSE NULL end same_time_range_again,
+        CASE WHEN tfe.high_speed = 1 THEN 1 ELSE NULL end high_speed,
+        CASE WHEN tfe.low_speed = 1 THEN 1 ELSE NULL end low_speed
+        from tietou t LEFT JOIN tietou_feature_extraction tfe on t.id = tfe.id
+        WHERE t.vlp_id = #{carId}
+        ) res
+    </select>
+    <select id="listCheatingCar" resultType="com.drcnet.highway.dto.CheatingViolationDto">
+        select carNoId,carNo,MAX(cheating) cheating,MAX(violation) violation,MAX(score) score from
+            (select tc.id carNoId,tc.car_no carNo
+                     ,GREATEST(same_station,speed,same_car_type,same_car_situation,short_dis_overweight,long_dis_lightweight,diff_flagstation_info) cheating
+                     ,GREATEST(same_car_number,different_zhou) violation,score
+             from ${scoreName} tf
+                      LEFT JOIN ${tableName} t on t.id = tf.id LEFT JOIN tietou_car_dic tc on tc.id = t.vlp_id
+             where tc.white_flag = 0) res
+        GROUP BY carNoId
+        ORDER BY score desc
+    </select>
+    <select id="getCheatingCount" resultType="com.drcnet.highway.dto.RiskAmountDto">
+        select
+        COUNT(DISTINCT case when e.same_car_number = 0 then e.vlp_id ELSE NULL end) sameCarNumber
+        ,COUNT(DISTINCT case when e.speed = 1 then e.vlp_id ELSE NULL end) speed
+        ,COUNT(DISTINCT case when e.same_car_type = 0 then e.vlp_id ELSE NULL end) sameCarType
+        ,COUNT(DISTINCT case when e.same_car_situation = 0 then e.vlp_id ELSE NULL end) sameCarSituation
+        ,COUNT(DISTINCT case when e.short_dis_overweight = 1 then e.vlp_id ELSE NULL end) shortDisOverweight
+        ,COUNT(DISTINCT case when e.long_dis_lightweight = 1 then e.vlp_id ELSE NULL end) longDisLightweight
+        ,COUNT(DISTINCT case when e.different_zhou = 1 then e.vlp_id ELSE NULL end) differentZhou
+        ,COUNT(DISTINCT case when e.diff_flagstation_info = 1 then e.vlp_id ELSE NULL end) diffFlagstationInfo
+        ,COUNT(DISTINCT case when e.same_station = 1 then e.vlp_id ELSE NULL end) sameStation
+        ,COUNT(DISTINCT case when e.min_out_in = 1 then e.vlp_id ELSE NULL end) minOutIn
+        ,COUNT(DISTINCT case when e.same_time_range_again = 1 then e.vlp_id ELSE NULL end) sameTimeRangeAgain
+        ,COUNT(DISTINCT case when e.flagstation_lost = 1 then e.vlp_id ELSE NULL end) flagstationLost
+        from tietou_feature_extraction e
+        <where>
+            1=1
+            <if test="carType == 0">
+                and e.car_type = 0
+            </if>
+            <if test="carType == 1">
+                and e.car_type = 1
+            </if>
+        </where>
+    </select>
+    <select id="listCheatingPeriod" resultType="com.drcnet.highway.dto.PeriodAmountDto">
+        select DATE_FORMAT(t.extime,'%Y%m%d') period,COUNT(distinct t.vlp_id) amount from tietou t
+          LEFT JOIN tietou_feature_extraction tfe on t.id = tfe.id
+        where t.vlp_id in (select DISTINCT vlp_id from tietou_feature_statistic where score &gt; 75)
+        <if test="carType == 0">
+            and tfe.car_type = 0
+        </if>
+        <if test="carType == 1">
+            and tfe.car_type = 1
+        </if>
+        GROUP BY DATE_FORMAT(t.extime,'%Y%m%d')
+    </select>
+    <select id="listDetailFromAllTimes" resultMap="BaseResultMap">
+        select * from
+      <foreach collection="tables" separator="union all" index="index" item="item" open="(" close=")">
+          (select *,substring(#{item},length(#{item})-5,6) month_time from ${item} where 1=1
+          <choose>
+              <when test="carNoId != null">
+                  and vlp_id = #{carNoId}
+              </when>
+              <otherwise>
+                  and vlp_id in (select car_no_id from tietou_blacklist where use_flag = true)
+              </otherwise>
+          </choose>
+          <if test="queryDto.oper != null"> and oper = #{queryDto.oper}</if>
+          <if test="queryDto.enTime != null"> and DATE_FORMAT(entime,'%Y-%m-%d') = #{queryDto.enTime}</if>
+          <if test="queryDto.exTime != null"> and DATE_FORMAT(exTime,'%Y-%m-%d') = #{queryDto.exTime}</if>
+            )
+      </foreach> res order by exTime
+    </select>
+    <select id="selectByTableNameAndId" resultMap="BaseResultMap">
+        select * from tietou where id = #{id}
+    </select>
+    <select id="listThroughFrequency" resultType="com.drcnet.highway.dto.ThroughFrequencyDto">
+        select COUNT(*) amount,stationName from
+            (select rk stationName, rk_id station_id from tietou where vlp_id = #{dto.carNoId}
+             UNION ALL select ck stationName, ck_id station_id from tietou where vlp_id = #{dto.carNoId}) res
+        GROUP BY station_id ORDER BY amount desc
+    </select>
+    <select id="listInOutStationRelation" resultType="com.drcnet.highway.dto.ThroughFrequencyDto">
+        select COUNT(*) amount,rk entranceStation,ck exitStation from tietou
+        where vlp_id = #{dto.carNoId} GROUP BY rk_id,ck_id ORDER BY amount desc
+    </select>
+    <select id="selectAllTimeByMonth" resultMap="BaseResultMap">
+        select t.id,t.entime,t.extime,t.envlp_id,t.vlp_id,t.vlp,t.ck,t.rk_id,t.ck_id from tietou t
+        where t.month_time = #{monthTime} and t.entime &gt; #{firstTime}
+    </select>
+    <select id="listSamePeriodId" resultType="java.lang.Integer">
+        select id from tietou where vlp_id = #{vlpId} and month_time = #{monthTime} and entime &gt; #{firstTime} and
+        ((entime &gt; #{entime}  and entime &lt; #{extime}) or (extime &gt; #{entime}  and extime &lt; #{extime}))
+    </select>
+    <select id="countThrough" resultType="java.lang.Integer">
+        select count(*) from tietou where vlp_id = #{carId}
+    </select>
+
+    <select id="getAxlenum" resultType="com.drcnet.highway.dto.PeriodAmountDto">
+        select axlenum period,count(*) amount from tietou where vlp_id = #{carId} and axlenum != 0 group by axlenum order by amount desc
+    </select>
+    <update id="updateFlagLostExtractionTrue">
+        update tietou_feature_extraction set flagstation_lost = 0 where id in
+        <foreach collection="flagLostMembers" open="(" close=")" separator="," item="item">
+            #{item}
+        </foreach>
+    </update>
+    <select id="selectMaxId" resultType="java.lang.Integer">
+        select MAX(id) from tietou
+    </select>
+    <select id="listByIdPeriod" resultMap="BaseResultMap">
+        select id,rk,ck,envlp,envlp_id,vlp,vlp_id,tolldistance,totalweight,vc,envc from tietou_test where id between #{begin} and #{end}
+    </select>
+    <select id="listAllByIdPeriod" resultMap="BaseResultMap">
+        select id,rk,ck,envlp,vlp,rk_id,ck_id,envlp_id,vlp_id,entime,extime,month_time,envc,vc,envt,vt,totalweight,axlenum,tolldistance,flagstationinfo,realflagstationinfo
+        from tietou where id between #{begin} and #{end}
+    </select>
+    <select id="getMostUseAxleNum" resultType="java.lang.Integer">
+        select axlenum from tietou where
+        <choose>
+            <when test="inOutFlag == 1">
+                vlp_id
+            </when>
+            <otherwise> envlp_id </otherwise>
+        </choose>
+         = #{vlpId} and axlenum &gt; 0 group by axlenum order by count(*) desc limit 1
+    </select>
+
+    <select id="getMostUseCarType" resultType="java.lang.Integer">
+        select
+        <choose>
+            <when test="inOutFlag == 1">
+                vc
+            </when>
+            <otherwise> envc </otherwise>
+        </choose>
+         from tietou where
+        <choose>
+            <when test="inOutFlag == 1">
+                vlp_id
+            </when>
+            <otherwise> envlp_id </otherwise>
+        </choose>
+         = #{vlpId} and
+        <choose>
+            <when test="inOutFlag == 1">
+                vc &gt; 0 group by vc
+            </when>
+            <otherwise> envc &gt; 0 group by envc </otherwise>
+        </choose>
+         order by count(*) desc limit 1
+    </select>
+
+    <select id="listStationFlagByPeroid" resultMap="BaseResultMap">
+        select id,rk_id,ck_id,envlp_id,vlp_id,flagstationinfo
+        from tietou where id between #{begin} and #{end}
+    </select>
+    <select id="listStationByPeroid" resultMap="BaseResultMap">
+        select id,flagstationinfo,realflagstationinfo,lastmoney
+        from tietou where id between #{begin} and #{end}
+    </select>
+
+    <select id="listEnvlpIsNullData" resultMap="BaseResultMap">
+        select id,vlp,envlp from tietou_bak where vlp_id is null
+    </select>
+
+    <update id="updateTietou">
+        update tietou_bak set vlp_id = #{tietou.vlpId} where id = #{tietou.id}
+    </update>
+
+    <insert id="insertBatch"  parameterType="java.util.List">
+        insert into tietou_import (
+        month_time,
+        entime,
+        rk,
+        rk_id,
+        envlp,
+        envlp_id,
+        envt,
+        envc,
+        extime,
+        ck,
+        ck_id,
+        vlp,
+        vlp_id,
+        vc,
+        vt,
+        exlane,
+        oper,
+        lastmoney,
+        freemoney,
+        totalweight,
+        axlenum,
+        tolldistance,
+        card,
+        flagstationinfo,
+        realflagstationinfo,
+        inv,
+        weight_limitation
+        )
+        values
+        <foreach collection="list" item="item" index="index" separator="," >
+            (
+            #{item.monthTime,jdbcType=INTEGER},
+            #{item.entime,jdbcType=DATE},
+            #{item.rk,jdbcType=VARCHAR},
+            #{item.rkId,jdbcType=INTEGER},
+            #{item.envlp,jdbcType=VARCHAR},
+            #{item.envlpId,jdbcType=INTEGER},
+            #{item.envt,jdbcType=INTEGER},
+            #{item.envc,jdbcType=INTEGER},
+            #{item.extime,jdbcType=DATE},
+            #{item.ck,jdbcType=VARCHAR},
+            #{item.ckId,jdbcType=INTEGER},
+            #{item.vlp,jdbcType=VARCHAR},
+            #{item.vlpId,jdbcType=INTEGER},
+            #{item.vc,jdbcType=INTEGER},
+            #{item.vt,jdbcType=INTEGER},
+            #{item.exlane,jdbcType=VARCHAR},
+            #{item.oper,jdbcType=VARCHAR},
+            #{item.lastmoney,jdbcType=DECIMAL},
+            #{item.freemoney,jdbcType=DECIMAL},
+            #{item.totalweight,jdbcType=INTEGER},
+            #{item.axlenum,jdbcType=INTEGER},
+            #{item.tolldistance,jdbcType=INTEGER},
+            #{item.card,jdbcType=VARCHAR},
+            #{item.flagstationinfo,jdbcType=VARCHAR},
+            #{item.realflagstationinfo,jdbcType=VARCHAR},
+            #{item.inv,jdbcType=VARCHAR},
+            #{item.weightLimitation,jdbcType=INTEGER}
+            )
+        </foreach>
+    </insert>
+
+    <select id="countAxlenumByVlpId" resultType="HashMap">
+        select axlenum, count(id) as count from tietou where vlp_id = #{vlpId} group by axlenum
+    </select>
+
+    <select id="listAllZhouShuDiffVlpId" resultType="java.lang.Integer">
+        select distinct vlp_id from tietou
+        WHERE id IN
+        <foreach collection="idList" item="id" index="index" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+    </select>
+
+    <select id="listAllZhouShuDiffTietous" resultMap="BaseResultMap">
+        select id,vlp_id,axlenum from tietou
+        WHERE vlp_id IN
+        <foreach collection="vlpIdList" item="id" index="index" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+    </select>
+
+    <select id="listByVlpId" resultMap="BaseResultMap">
+        select * from tietou
+        WHERE vlp_id = #{vlpId}
+    </select>
+    <select id="listNonSameCarRecordByMonth" resultMap="BaseResultMap">
+        select id,envlp,vlp,envlp_id,vlp_id from tietou where id in
+        (select id from tietou_feature_extraction where month_time = #{monthTime} and same_car_number = 0 )
+    </select>
+    <select id="listSameEnvlpOver2" resultType="com.drcnet.highway.dto.SameCarEnvlpDto">
+        select envlp_id envlpId,envlp,vlp,count(*) amount from tietou
+        where vlp_id = #{vlpId} and envlp_id != #{vlpId}
+        group by envlp_id having amount &gt; 1
+    </select>
+    <select id="listEnVlpByVlpId" resultType="com.drcnet.highway.dto.SameCarEnvlpDto">
+        select envlp_id envlpId,envlp,vlp,vlp_id vlpId from tietou
+        where id in
+              (select id from tietou_feature_extraction where vlp_id = #{vlpId} and same_car_number = 0)
+    </select>
+    <select id="listZhouShuDIffTietouByextraction" resultMap="BaseResultMap">
+        select id,vlp_id,axlenum from tietou a where id BETWEEN #{start} and #{end} and exists(select 1 from tietou_feature_extraction b where a.id = b.id and different_zhou = 1)
+    </select>
+    <select id="is2ndRoundCar" resultType="java.lang.Integer">
+        select count(distinct  id) from
+        (select id from tietou where vlp_id = #{vlpId}
+        and rk_id in
+        <foreach collection="secondRoundIds" separator="," open="(" close=")" item="item"> #{item}</foreach>
+        union all
+        select id from tietou where vlp_id = #{vlpId}
+        and ck_id in
+        <foreach collection="secondRoundIds" separator="," open="(" close=")" item="item"> #{item}</foreach>) res
+    </select>
+    <select id="getCountByVlpId" resultType="java.lang.Integer">
+        select count(*) from tietou where vlp_id = #{vlpId}
+        <if test="axlenum != null"> and axlenum = #{axlenum}</if>
+    </select>
+
+    <select id="queryTravelRecords" resultMap="BaseResultMap">
+        select * from tietou_test
+        <where>
+            <if test="envlpId !=null">
+                and envlp_id = #{envlpId}
+            </if>
+            <if test="vlpId !=null">
+                and vlp_id = #{vlpId}
+            </if>
+            <if test="inStartTime !=null and inStartTime !=''">
+                and entime between #{inStartTime} and #{inEndTime}
+            </if>
+            <if test="outStartTime !=null and outStartTime !=''">
+                and extime between #{outStartTime} and #{outEndTime}
+            </if>
+            <if test="oper !=null and oper !=''">
+                and oper = #{oper}
+            </if>
+            <if test="carType !=null and carType == 0">
+                and vc &gt; 10
+            </if>
+            <if test="carType !=null and carType == 1">
+                and vc &lt; 10
+            </if>
+        </where>
+        order by extime desc
+    </select>
+
+    <select id="stasticDiffCarNoByCarId" resultType="com.drcnet.highway.dto.response.DiffCarNoEnvlpDto">
+        SELECT count(1) inNum,envlp_id carId,envlp carNo, vlp outCarNo from tietou where vlp_id = #{carId} and envlp_id != #{carId}
+        group by envlp_id,envlp order by count(1) desc limit 20
+    </select>
+
+    <select id="staticOutNumByEnvlp" resultType="java.lang.Integer">
+        select count(1) from tietou_test where vlp_id = #{vlpId}
+    </select>
+
+    <select id="listAllByEnvlpAndVlp" resultMap="BaseResultMap">
+        select entime,tolldistance,exlane,tolldistance/TIMESTAMPDIFF(second,entime,extime)*3.6 speed,rk,envc from tietou where envlp_id = #{envlpId} and vlp_id = #{vlpId} order by extime desc
+    </select>
+
+    <select id="queryOutTravelByEnvlp" resultMap="BaseResultMap">
+        select extime,tolldistance,exlane,tolldistance/TIMESTAMPDIFF(second,entime,extime)*3.6 speed,ck,vc from tietou_test where vlp_id = #{vlpId}
+        and extime between #{outStartTime} and #{outEndTime}
+        order by extime asc
+        limit 1
+    </select>
+    <select id="listCarTypeDetail" resultType="com.drcnet.highway.dto.PeriodAmountDto">
+        select
+               <choose>
+                   <when test="flag == 1"> vc period,</when>
+                   <when test="flag == 2"> envc period,</when>
+               </choose>
+               count(*) amount from tietou
+        where
+                <choose>
+                    <when test="flag == 1"> vlp_id</when>
+                    <when test="flag == 2"> envlp_id</when>
+                </choose>
+                = #{vlpId}
+        group by
+                <choose>
+                    <when test="flag == 1"> vc</when>
+                    <when test="flag == 2"> envc</when>
+                </choose>
+        order by amount desc
+    </select>
+
+    <select id="listSpeedAndSameTimeByVlpId" resultMap="BaseResultMap">
+        select
+        t.entime,t.rk,t.envlp,t.envt,t.envc,t.extime,t.ck,t.vlp,t.vt,t.vc,
+        t.exlane,t.oper,t.lastmoney,t.freemoney,t.totalweight,t.axlenum,t.tolldistance,t.card,t.flagstationinfo
+        from tietou t,tietou_feature_extraction e
+        where e.vlp_id = #{vlpId} and t.id = e.id and e.speed = 1 and e.same_time_range_again = 1
+    </select>
+
+    <select id="listDiffCarNoAndSpeedByVlpId" resultMap="BaseResultMap">
+        select
+        t.entime,t.rk,t.envlp,t.envt,t.envc,t.extime,t.ck,t.vlp,t.vt,t.vc,
+        t.exlane,t.oper,t.lastmoney,t.freemoney,t.totalweight,t.axlenum,t.tolldistance,t.card,t.flagstationinfo
+        from tietou t,tietou_feature_extraction e
+        where e.vlp_id = #{vlpId} and t.id = e.id and e.speed = 1 and e.same_car_number = 0
+    </select>
+
+    <select id="listDiffCarNoAndSameTimeByVlpId" resultMap="BaseResultMap">
+        select
+        t.entime,t.rk,t.envlp,t.envt,t.envc,t.extime,t.ck,t.vlp,t.vt,t.vc,
+        t.exlane,t.oper,t.lastmoney,t.freemoney,t.totalweight,t.axlenum,t.tolldistance,t.card,t.flagstationinfo
+        from tietou t,tietou_feature_extraction e
+        where e.vlp_id = #{vlpId} and t.id = e.id and e.same_car_number = 0 and e.same_time_range_again = 1
+    </select>
+
+    <select id="listAllRiskByVlpId" resultMap="BaseResultMap">
+        select
+        t.entime,t.rk,t.envlp,t.envt,t.envc,t.extime,t.ck,t.vlp,t.vt,t.vc,
+        t.exlane,t.oper,t.lastmoney,t.freemoney,t.totalweight,t.axlenum,t.tolldistance,t.card,t.flagstationinfo
+        from tietou t,tietou_feature_extraction e
+        where e.vlp_id = #{vlpId} and t.id = e.id and e.speed = 1 and e.same_time_range_again = 1 and e.same_car_number = 0
+    </select>
+    <select id="listSpeedIllegalRecord" resultMap="BaseResultMap">
+        select * from tietou t
+        where t.id in
+        (select id from tietou_feature_extraction where speed = 1)
+    </select>
+    <select id="listAxlenumIllegalRecord" resultMap="BaseResultMap">
+        select * from tietou t
+        where t.id in
+              (select id from tietou_feature_extraction where different_zhou = 1)
+    </select>
+
+    <select id="listByPeriod" resultMap="BaseResultMap">
+        select * from tietou_test where id BETWEEN #{start} and #{end}
+    </select>
+
+    <select id="getSameNumCar" resultType="com.drcnet.highway.domain.SameCarNum">
+        select count(1) num,t.vlpId vlpId from (
+              select count(1), vlp_id vlpId, vc from tietou where id BETWEEN 1 and 4462616 group by vlp_id, vc) t
+        group by t.vlpId having count(1) > 1 order by count(1) desc
+    </select>
+
+    <select id="getSameNumCarByVlpId" resultType="com.drcnet.highway.domain.SameCarNum">
+              select count(1), vlp_id vlpId, vc from tietou where id BETWEEN 1 and 4462616 and vlp_id = #{vlpId} group by vlp_id, vc order by count(1) desc
+    </select>
+
+    <update id="updateVlpIdById" >
+        update tietou set vlp_id = #{vlpId} where id = #{id}
+    </update>
+
+    <update id="updateVlpIdAndEnvlpIdById" >
+        update tietou_test set
+        <choose>
+            <when test="envlpId != null">
+                envlp_id = #{envlpId}
+            </when>
+            <when test="vlpId != null">
+                vlp_id = #{vlpId}
+            </when>
+            <otherwise> 1 = 1 </otherwise>
+        </choose>
+        where id = #{id}
+    </update>
+</mapper>
