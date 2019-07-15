@@ -115,7 +115,6 @@ public class BeanConvertUtil {
         if (data.startsWith(".")) {
             data = sb.append(data).toString();
         }
-
         return new BigDecimal(Double.valueOf(data)).setScale(2, BigDecimal.ROUND_HALF_UP);
 
     }
