@@ -2,16 +2,24 @@ package com.drcnet.highway.service.dataclean;
 
 
 import com.drcnet.highway.common.BeanConvertUtil;
+import com.drcnet.highway.constants.TipsConsts;
 import com.drcnet.highway.dao.*;
 import com.drcnet.highway.domain.CarFlag;
 import com.drcnet.highway.domain.SameCarNum;
 import com.drcnet.highway.domain.StationFlag;
+import com.drcnet.highway.dto.SuccessAmountDto;
 import com.drcnet.highway.entity.*;
 import com.drcnet.highway.entity.dic.StationDic;
 import com.drcnet.highway.entity.dic.TietouCarDic;
+import com.drcnet.highway.exception.MyException;
+import com.drcnet.highway.service.TietouStationDicService;
 import com.drcnet.highway.service.dataclean.flag.impl.CertainFlagImpl;
 import com.drcnet.highway.service.dataclean.flag.impl.UncertainFlagImpl;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.xssf.usermodel.XSSFCell;
+import org.apache.poi.xssf.usermodel.XSSFRow;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.context.ApplicationContext;
 import org.springframework.data.redis.core.BoundHashOperations;
 import org.springframework.data.redis.core.BoundSetOperations;
@@ -20,8 +28,11 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
+import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
@@ -68,6 +79,9 @@ public class CompareService {
     private TietouFeatureStatisticMonthMapper tietouFeatureStatisticMonthMapper;
     @Resource
     private TietouFeatureStatisticMapper tietouFeatureStatisticMapper;
+
+    @Resource
+    private TietouStationDicService tietouStationDicService;
 
     /**
      * 铁头给的二绕西出入站口map
@@ -1279,6 +1293,72 @@ public class CompareService {
             log.error("分批检查tietou表vlpId是否为car_dic_all里的id出错。", e);
         } finally {
             latch.countDown();
+        }
+    }
+
+    public SuccessAmountDto uploadNewStation(MultipartFile file) {
+        SuccessAmountDto successAmountDto = new SuccessAmountDto();
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename == null) {
+            throw new MyException("文件异常请重试");
+        }
+        if (!originalFilename.endsWith("xls") && !originalFilename.endsWith("xlsx")) {
+            throw new MyException("文件类型错误，请上传Excel文件");
+        }
+        int successAmount = 0;
+        int total = 0;
+        BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps("station_dic");
+        try (InputStream is = file.getInputStream()) {
+            XSSFWorkbook xssfSheets = new XSSFWorkbook(is);
+            XSSFSheet sheet = xssfSheets.getSheetAt(0);
+            int lastRowNum = sheet.getLastRowNum();
+            for (int i = 1; i <= lastRowNum; i++) {
+
+                XSSFRow row = sheet.getRow(i);
+                XSSFCell rkCell = row.getCell(0);
+                if (rkCell == null) {
+                    continue;
+                }
+                String rk = rkCell.getStringCellValue();
+                if (StringUtils.isEmpty(rk) || "入口站".equals(rk) || rk.contains("统计日期")) {
+                    continue;
+                }
+                List<StationDic> dicList = new ArrayList<>(2);
+                compareAndInsertStation(hashOperations, rk, dicList);
+                total++;
+
+                XSSFCell ckCell = row.getCell(6);
+                if (ckCell != null && !StringUtils.isEmpty(ckCell.getStringCellValue())) {
+                    String ck = ckCell.getStringCellValue();
+                    compareAndInsertStation(hashOperations, ck, dicList);
+                }
+
+                if (!CollectionUtils.isEmpty(dicList)) {
+                    int result = tietouStationDicService.insertAll(dicList);
+                    if (result == dicList.size()) {
+                        successAmount++;
+                    }
+                }
+            }
+            successAmountDto.setSuccess(successAmount);
+            successAmountDto.setTotal(total);
+        } catch (IOException e) {
+            log.error("{}", e);
+            throw new MyException(TipsConsts.SERVER_ERROR);
+        }
+        return successAmountDto;
+    }
+
+    private void compareAndInsertStation(BoundHashOperations<String, Object, Object> hashOperations, String rk, List<StationDic> dicList) {
+        if (hashOperations.get(rk) == null) {
+            StationDic query = new StationDic();
+            query.setStationName(rk);
+            List<StationDic> stationDicList = stationDicMapper.select(query);
+            if (CollectionUtils.isEmpty(stationDicList)) {
+                StationDic insert = new StationDic();
+                insert.setStationName(rk);
+                dicList.add(insert);
+            }
         }
     }
 }

@@ -1,12 +1,13 @@
 package com.drcnet.highway.controller.dataclean;
 
+import com.drcnet.highway.constants.TipsConsts;
+import com.drcnet.highway.dto.SuccessAmountDto;
 import com.drcnet.highway.util.Result;
 import com.drcnet.highway.service.dataclean.CompareService;
 
 import io.swagger.annotations.ApiOperation;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 
@@ -168,6 +169,17 @@ public class CompareController {
     public Result checkAndUpdateTietouVlpId(){
         compareService.checkAndUpdateTietouVlpId();
         return Result.ok();
+    }
+
+    @PostMapping("uploadNewStation")
+    @ApiOperation("从新给的数据里找出新的入口或出口站并插入库")
+    public Result uploadNewStation(@RequestPart MultipartFile file){
+        if (file == null || file.isEmpty()) {
+            return Result.error(TipsConsts.LACK_PARAMS);
+        }
+
+        SuccessAmountDto amountDto = compareService.uploadNewStation(file);
+        return Result.ok(amountDto);
     }
 
 }
