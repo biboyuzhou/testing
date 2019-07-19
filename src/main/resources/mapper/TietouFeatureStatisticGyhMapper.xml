@@ -26,18 +26,6 @@
         select ts.vlp,ts.vlp_id,ts.cheating,ts.violation,ts.score,false black_flag
         from tietou_feature_statistic ts
         where ts.is_free_car = 0
-        <!--<choose>
-            <when test="carType == 0">
-                and second_flag = 1
-            </when>
-            <when test="carType == 1">
-                and second_flag = 2
-            </when>
-            <when test="carType == -1">
-                and second_flag = 1
-            </when>
-            <otherwise> and 1=2</otherwise>
-        </choose>-->
         <choose>
             <when test="carType == 0">
                 and car_type = 0
