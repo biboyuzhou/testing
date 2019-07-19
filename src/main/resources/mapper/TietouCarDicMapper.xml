@@ -19,17 +19,16 @@
     <result column="weight_min" jdbcType="INTEGER" property="weightMin" />
   </resultMap>
     <select id="queryCarNo" resultMap="BaseResultMap">
-      select id,car_no from car_dic where car_no like #{carNo} and use_flag = true
-      <choose>
-
-        <when test="carType == 1">
+      select id,car_no from car_dic
+      <where>
+        car_no like #{carNo} and use_flag = true
+        <if test="carType == 1">
           and car_type in (1,2,3,4,5)
-        </when>
-        <when test="carType == 0">
+        </if>
+        <if test="carType == 0">
           and car_type in (11,12,13,14,15)
-        </when>
-        <otherwise> and 1=2</otherwise>
-      </choose>
+        </if>
+      </where>
        limit 10
     </select>
 
