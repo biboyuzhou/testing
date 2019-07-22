@@ -17,6 +17,12 @@ public class TietouMonthStatistic implements Serializable {
 
     private Integer speed;
 
+    @Column(name = "low_speed")
+    private Integer lowSpeed;
+
+    @Column(name = "high_speed")
+    private Integer highSpeed;
+
     @Column(name = "same_car_type")
     private Integer sameCarType;
 

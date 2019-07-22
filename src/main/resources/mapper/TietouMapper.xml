@@ -266,6 +266,8 @@
         select
         COUNT(DISTINCT case when e.same_car_number = 0 then e.vlp_id ELSE NULL end) sameCarNumber
         ,COUNT(DISTINCT case when e.speed = 1 then e.vlp_id ELSE NULL end) speed
+        ,COUNT(DISTINCT case when e.low_speed = 1 then e.vlp_id ELSE NULL end) lowSpeed
+        ,COUNT(DISTINCT case when e.high_speed = 1 then e.vlp_id ELSE NULL end) highSpeed
         ,COUNT(DISTINCT case when e.same_car_type = 0 then e.vlp_id ELSE NULL end) sameCarType
         ,COUNT(DISTINCT case when e.same_car_situation = 0 then e.vlp_id ELSE NULL end) sameCarSituation
         ,COUNT(DISTINCT case when e.short_dis_overweight = 1 then e.vlp_id ELSE NULL end) shortDisOverweight
