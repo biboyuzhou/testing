@@ -94,7 +94,7 @@ public class MainPageController {
         return Result.ok(cheatingCount);
     }
 
-//    @GetMapping("listCheatingPeriod")
+    @GetMapping("listCheatingPeriod")
     @ApiOperation("查询某个月每天的违规数量")
     public Result listCheatingPeriod(@RequestParam String beginMonth,Integer carType){
         List<PeriodAmountDto> periodAmountDtos = tietouService.listCheatingPeriod(beginMonth,carType);
