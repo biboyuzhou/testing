@@ -2,6 +2,7 @@ package com.drcnet.highway.service.dataclean;
 
 
 import com.drcnet.highway.common.BeanConvertUtil;
+import com.drcnet.highway.constants.CarSituationConsts;
 import com.drcnet.highway.constants.TipsConsts;
 import com.drcnet.highway.dao.*;
 import com.drcnet.highway.domain.CarFlag;
@@ -16,6 +17,8 @@ import com.drcnet.highway.service.TietouStationDicService;
 import com.drcnet.highway.service.dataclean.flag.impl.CertainFlagImpl;
 import com.drcnet.highway.service.dataclean.flag.impl.UncertainFlagImpl;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
+import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFCell;
 import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
@@ -1308,41 +1311,82 @@ public class CompareService {
         int successAmount = 0;
         int total = 0;
         BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps("station_dic");
+        BoundHashOperations<String, Object, Object> carCache = redisTemplate.boundHashOps("car_cache_origin");
+        List<TietouOrigin> originList = new ArrayList<>(5000);
         try (InputStream is = file.getInputStream()) {
-            XSSFWorkbook xssfSheets = new XSSFWorkbook(is);
-            XSSFSheet sheet = xssfSheets.getSheetAt(0);
+            Workbook workbook = WorkbookFactory.create(is);
+            Sheet sheet = workbook.getSheetAt(0);
             int lastRowNum = sheet.getLastRowNum();
             for (int i = 1; i <= lastRowNum; i++) {
-
-                XSSFRow row = sheet.getRow(i);
-                XSSFCell rkCell = row.getCell(0);
-                if (rkCell == null) {
+                if (i < 4) {
                     continue;
                 }
-                String rk = rkCell.getStringCellValue();
-                if (StringUtils.isEmpty(rk) || "入口站".equals(rk) || rk.contains("统计日期")) {
-                    continue;
-                }
-                List<StationDic> dicList = new ArrayList<>(2);
-                compareAndInsertStation(hashOperations, rk, dicList);
-                total++;
+                TietouOrigin origin = new TietouOrigin();
+                Row row = sheet.getRow(i);
+                //card
+                origin.setCard(row.getCell(1).getStringCellValue());
 
-                XSSFCell ckCell = row.getCell(6);
-                if (ckCell != null && !StringUtils.isEmpty(ckCell.getStringCellValue())) {
-                    String ck = ckCell.getStringCellValue();
-                    compareAndInsertStation(hashOperations, ck, dicList);
-                }
-
-                if (!CollectionUtils.isEmpty(dicList)) {
-                    int result = tietouStationDicService.insertAll(dicList);
-                    if (result == dicList.size()) {
-                        successAmount++;
+                //ck,ck_id
+                Cell vlpCell = row.getCell(3);
+                if (vlpCell != null && !StringUtils.isEmpty(vlpCell.getStringCellValue())) {
+                    String vlp = vlpCell.getStringCellValue();
+                    origin.setVlp(vlp);
+                    if (carCache.get(vlp) != null) {
+                        origin.setVlpId(Integer.parseInt(String.valueOf(carCache.get(vlp))));
                     }
                 }
+
+                //出口车道
+                origin.setExlane(row.getCell(4).getStringCellValue());
+
+                //
+                origin.setOper(row.getCell(5).getStringCellValue());
+
+                String extime = row.getCell(7).getStringCellValue();
+                DateTimeFormatter df = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+                origin.setExtime(LocalDateTime.parse(extime, df));
+
+                origin.setVt(CarSituationConsts.SITUATION_MAP.get(row.getCell(8).getStringCellValue()));
+                origin.setVc(CarSituationConsts.CAR_TYPE_MAP.get(row.getCell(9).getStringCellValue()));
+
+
+                Cell rkCell = row.getCell(10);
+                if (rkCell != null && !StringUtils.isEmpty(rkCell.getStringCellValue())) {
+                    String rk = rkCell.getStringCellValue();
+                    origin.setRk(rk);
+                    if (hashOperations.get(rk) != null) {
+                        origin.setRkId(Integer.parseInt(String.valueOf(hashOperations.get(rk))));
+                    }
+                }
+
+                String entime = row.getCell(12).getStringCellValue();
+                origin.setEntime(LocalDateTime.parse(entime, df));
+
+                Cell envlpCell = row.getCell(13);
+                if (envlpCell != null && !StringUtils.isEmpty(envlpCell.getStringCellValue())) {
+                    String envlp = envlpCell.getStringCellValue();
+                    origin.setEnvlp(envlp);
+                    if (carCache.get(envlp) != null) {
+                        origin.setEnvlpId(Integer.parseInt(String.valueOf(carCache.get(envlp))));
+                    }
+                }
+
+                origin.setEnvc(Integer.parseInt(row.getCell(14).getStringCellValue()));
+                origin.setEnvt(Integer.parseInt(row.getCell(15).getStringCellValue()));
+
+
+
+
+
+
+
             }
             successAmountDto.setSuccess(successAmount);
             successAmountDto.setTotal(total);
         } catch (IOException e) {
+            log.error("{}", e);
+            throw new MyException(TipsConsts.SERVER_ERROR);
+        } catch (InvalidFormatException e) {
             log.error("{}", e);
             throw new MyException(TipsConsts.SERVER_ERROR);
         }
