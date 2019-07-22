@@ -108,9 +108,9 @@
     </select>
     <select id="getRiskProportion" resultType="com.drcnet.highway.dto.RiskPeriodAmount">
         select COUNT(case when ts.score &lt; 20 then 1 ELSE NULL end) non,
-        COUNT(case when ts.score BETWEEN 20 and 39.9 then 1 ELSE NULL end) low,
-        COUNT(case when ts.score BETWEEN 40 and 60 then 1 ELSE NULL end) middle,
-        COUNT(case when ts.score BETWEEN 60.01 and 100 then 1 ELSE NULL end) high
+        COUNT(case when ts.score BETWEEN 20 and 49.99 then 1 ELSE NULL end) low,
+        COUNT(case when ts.score BETWEEN 50 and 79.99 then 1 ELSE NULL end) middle,
+        COUNT(case when ts.score BETWEEN 80 and 100 then 1 ELSE NULL end) high
         from tietou_feature_statistic_gyh ts
         <where>
             1=1
