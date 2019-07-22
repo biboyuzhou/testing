@@ -39,7 +39,7 @@ public interface TietouMapper extends MyMapper<TietouOrigin> {
 
     RiskAmountDto getCheatingCount(@Param("extractionName") String extractionName, @Param("tableName") String tableName,@Param("carType") Integer carType);
 
-    List<PeriodAmountDto> listCheatingPeriod(@Param("tableName") String tableName, @Param("extractionName") String extractionName, @Param("statisticName") String statisticName,@Param("carType") Integer carType);
+    List<PeriodAmountDto> listCheatingPeriod(@Param("carType") Integer carType, @Param("queryMonth") Integer queryMonth);
 
     List<TietouOrigin> listDetailFromAllTimes(@Param("queryDto") BlackDetailQueryDto queryDto, @Param("carNoId") Integer carNoId, @Param("tables") List<String> tables);
 

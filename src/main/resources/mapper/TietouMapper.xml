@@ -297,6 +297,7 @@
         <if test="carType == 1">
             and tfe.car_type = 1
         </if>
+        and tfe.month_time = #{queryMonth}
         GROUP BY DATE_FORMAT(t.extime,'%Y%m%d')
     </select>
     <select id="listDetailFromAllTimes" resultMap="BaseResultMap">

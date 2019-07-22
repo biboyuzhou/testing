@@ -7,14 +7,14 @@ import com.drcnet.highway.dao.*;
 import com.drcnet.highway.dto.*;
 import com.drcnet.highway.dto.request.*;
 import com.drcnet.highway.dto.response.CompositeRiskDto;
-import com.drcnet.highway.entity.StationFeatureStatistics;
 import com.drcnet.highway.dto.response.DiffCarNoEnvlpDto;
 import com.drcnet.highway.dto.response.DiffCarNoInOutDataDto;
 import com.drcnet.highway.dto.response.DiffCarNoStaticDto;
+import com.drcnet.highway.entity.StationFeatureStatistics;
 import com.drcnet.highway.entity.TietouFeatureExtractionStandardScore;
 import com.drcnet.highway.entity.TietouMonthStatistic;
-import com.drcnet.highway.entity.dic.TietouCarDic;
 import com.drcnet.highway.entity.TietouOrigin;
+import com.drcnet.highway.entity.dic.TietouCarDic;
 import com.drcnet.highway.enums.FeatureCodeEnum;
 import com.drcnet.highway.exception.MyException;
 import com.drcnet.highway.util.DateUtils;
@@ -291,10 +291,31 @@ public class TietouService {
      */
     @Cacheable(value = "cheatingPeriod", key = "#beginMonth.toString().concat('-').concat(#carType)")
     public List<PeriodAmountDto> listCheatingPeriod(String beginMonth, Integer carType) {
-        String tableName = tablePrev + beginMonth;
+        /*String tableName = tablePrev + beginMonth;
         String extractionName = extractionTablePrev + beginMonth;
-        String statisticName = statisticTablePrev + beginMonth;
-        List<PeriodAmountDto> periodAmountDtos = tietouMapper.listCheatingPeriod(tableName, extractionName, statisticName, carType);
+        String statisticName = statisticTablePrev + beginMonth;*/
+        List<PeriodAmountDto> periodAmountDtos = new ArrayList<>(31);
+        BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps(beginMonth);
+        if (hashOperations.size() > 0) {
+            Map<Object, Object> cacheMap = hashOperations.entries();
+            for(Map.Entry<Object, Object> entry : cacheMap.entrySet()) {
+                PeriodAmountDto periodAmountDto = new PeriodAmountDto();
+                periodAmountDto.setPeriod(String.valueOf(entry.getKey()));
+                periodAmountDto.setAmount(Integer.parseInt(String.valueOf(entry.getValue())));
+                periodAmountDtos.add(periodAmountDto);
+            }
+        } else {
+            Integer queryMonth = Integer.parseInt(beginMonth);
+            periodAmountDtos = tietouMapper.listCheatingPeriod(carType, queryMonth);
+
+            /*periodAmountDtos.stream().forEach(p -> {
+                hashOperations.put(p.getPeriod(), p.getAmount());
+            });*/
+            //替换为更简单的lambda表达式
+            if(!CollectionUtils.isEmpty(periodAmountDtos)) {
+                periodAmountDtos.stream().forEach(p -> hashOperations.put(p.getPeriod(), p.getAmount()));
+            }
+        }
         fillBlankDayPeriod(periodAmountDtos, beginMonth);
         return periodAmountDtos;
     }
