@@ -6,10 +6,7 @@ import com.drcnet.highway.constants.TipsConsts;
 import com.drcnet.highway.dao.*;
 import com.drcnet.highway.dto.*;
 import com.drcnet.highway.dto.request.*;
-import com.drcnet.highway.dto.response.CompositeRiskDto;
-import com.drcnet.highway.dto.response.DiffCarNoEnvlpDto;
-import com.drcnet.highway.dto.response.DiffCarNoInOutDataDto;
-import com.drcnet.highway.dto.response.DiffCarNoStaticDto;
+import com.drcnet.highway.dto.response.*;
 import com.drcnet.highway.entity.StationFeatureStatistics;
 import com.drcnet.highway.entity.TietouFeatureExtractionStandardScore;
 import com.drcnet.highway.entity.TietouMonthStatistic;
@@ -712,5 +709,34 @@ public class TietouService {
     private void getAllRiskList(Integer carId, CompositeRiskDto compositeRiskDto) {
         List<TietouOrigin> allRiskList = tietouMapper.listAllRiskByVlpId(carId);
         compositeRiskDto.setAllRiskList(allRiskList);
+    }
+
+    /**
+     * 统计所有通行记录里每个车型的数量
+     * 新版首页展示需要
+     * @return
+     */
+    public List<CarTypeCountDto> statisticCarTypeCount() {
+        List<CarTypeCountDto> carTypeCountDtoList = new ArrayList<>();
+        //统计所有通行记录里每个车型的数量
+        BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps("carType_count");
+        if (hashOperations.size() > 0) {
+            List<Object> objectList = hashOperations.values();
+            for(Object o : objectList) {
+                CarTypeCountDto dto = new CarTypeCountDto();
+                LinkedHashMap<String, Object> linkedHashMap = (LinkedHashMap<String, Object>) o;
+                dto.setCarType((Integer) linkedHashMap.get("carType"));
+                dto.setCount((Integer) linkedHashMap.get("count"));
+                carTypeCountDtoList.add(dto);
+            }
+        } else {
+            carTypeCountDtoList = tietouMapper.statisticCarTypeCount();
+            Map<String, CarTypeCountDto> map = new HashMap<>(carTypeCountDtoList.size());
+            for (CarTypeCountDto carTypeCountDto : carTypeCountDtoList) {
+                map.put(String.valueOf(carTypeCountDto.getCarType()), carTypeCountDto);
+            }
+            hashOperations.putAll(map);
+        }
+        return carTypeCountDtoList;
     }
 }

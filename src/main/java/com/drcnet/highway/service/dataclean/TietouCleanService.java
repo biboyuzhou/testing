@@ -4,6 +4,7 @@ import com.drcnet.highway.common.BeanConvertUtil;
 import com.drcnet.highway.config.ConfigConsts;
 import com.drcnet.highway.dao.*;
 import com.drcnet.highway.domain.StatisticCount;
+import com.drcnet.highway.dto.response.StationTripCountDto;
 import com.drcnet.highway.entity.*;
 import com.drcnet.highway.entity.dic.StationDic;
 import com.drcnet.highway.entity.dic.TietouCarDic;
@@ -1596,5 +1597,38 @@ public class TietouCleanService {
             latch.countDown();
         }
 
+    }
+
+    /**
+     * 统计二绕站点之间互相通行的数据
+     */
+    public List<StationTripCountDto> statistic2ndCount() {
+        List<StationTripCountDto> tripCountList = new ArrayList<>(500);
+        //二绕站点之间互相的通行记录统计
+        BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps("2nd_station_trip_count");
+        if (hashOperations.size() > 100) {
+            List<Object> objectList = hashOperations.values();
+            for(Object o : objectList) {
+                StationTripCountDto dto = new StationTripCountDto();
+                LinkedHashMap<String, Object> linkedHashMap = (LinkedHashMap<String, Object>) o;
+                dto.setCkId((Integer) linkedHashMap.get("ckId"));
+                dto.setCkName((String) linkedHashMap.get("ckName"));
+                dto.setRkId((Integer) linkedHashMap.get("rkId"));
+                dto.setRkName((String) linkedHashMap.get("rkName"));
+                dto.setNum((Integer) linkedHashMap.get("num"));
+                tripCountList.add(dto);
+            }
+        } else {
+            tripCountList = tietouMapper.statistic2ndCount();
+            Map<String, StationTripCountDto> map = new HashMap<>(tripCountList.size());
+            for (StationTripCountDto tripCount : tripCountList) {
+                StringBuilder sb = new StringBuilder(String.valueOf(tripCount.getRkId()));
+                sb.append("-").append(tripCount.getCkId());
+                map.put(sb.toString(), tripCount);
+            }
+            hashOperations.putAll(map);
+        }
+
+        return tripCountList;
     }
 }

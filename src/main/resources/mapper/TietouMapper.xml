@@ -678,4 +678,26 @@
         </choose>
         where id = #{id}
     </update>
+
+    <select id="statistic2ndCount" resultType="com.drcnet.highway.dto.response.StationTripCountDto">
+        select  rk_id rkId,
+                (select station_name from station_dic where id = rk_id ) rkName,
+                ck_id ckId,
+                (select station_name from station_dic where id = ck_id ) ckName,
+                count(1) num from tietou t
+        where rk_id in(341,125,460,39,302,
+                       276,122,123,120,35,
+                       608,468,197,129,226,
+                        134,487,148,91,401,
+                        89,150,34,400)
+              and ck_id in (341,125,460,39,302,
+                            276,122,123,120,35,
+                            608,468,197,129,226,
+                            134,487,148,91,401,
+                            89,150,34,400) group by rk_id,ck_id
+    </select>
+
+    <select id="statisticCarTypeCount" resultType="com.drcnet.highway.dto.response.CarTypeCountDto">
+        select vc carType,count(1) count from tietou where vc BETWEEN 1 and 15 group by vc order by vc
+    </select>
 </mapper>

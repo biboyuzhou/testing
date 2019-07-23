@@ -1374,7 +1374,22 @@ public class CompareService {
                 origin.setEnvc(Integer.parseInt(row.getCell(14).getStringCellValue()));
                 origin.setEnvt(Integer.parseInt(row.getCell(15).getStringCellValue()));
 
+                Cell ckCell = row.getCell(18);
+                if (ckCell != null && !StringUtils.isEmpty(ckCell.getStringCellValue())) {
+                    String ck = ckCell.getStringCellValue();
+                    origin.setCk(ck);
+                    if (hashOperations.get(ck) != null) {
+                        origin.setCkId(Integer.parseInt(String.valueOf(hashOperations.get(ck))));
+                    }
+                }
 
+                origin.setInv(row.getCell(25).getStringCellValue());
+
+                origin.setTolldistance(Integer.parseInt(row.getCell(27).getStringCellValue()));
+                origin.setTotalweight(Integer.parseInt(row.getCell(29).getStringCellValue()));
+                origin.setWeightLimitation(Integer.parseInt(row.getCell(30).getStringCellValue()));
+                origin.setAxlenum(Integer.parseInt(row.getCell(32).getStringCellValue()));
+                //origin.setLastmoney(BigDecimal.);
 
 
 

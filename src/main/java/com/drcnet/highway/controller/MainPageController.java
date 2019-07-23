@@ -6,15 +6,14 @@ import com.drcnet.highway.dto.RiskAmountDto;
 import com.drcnet.highway.dto.RiskPeriodAmount;
 import com.drcnet.highway.dto.request.TravelRecordQueryDto;
 import com.drcnet.highway.dto.request.CheatingListDto;
-import com.drcnet.highway.dto.response.CompositeRiskDto;
-import com.drcnet.highway.dto.response.DiffCarNoStaticDto;
-import com.drcnet.highway.dto.response.SameTimeRangeStaticDto;
+import com.drcnet.highway.dto.response.*;
 import com.drcnet.highway.entity.TietouFeatureStatisticGyh;
 import com.drcnet.highway.entity.dic.TietouCarDic;
 import com.drcnet.highway.exception.MyException;
 import com.drcnet.highway.service.TietouExtractionService;
 import com.drcnet.highway.service.TietouScoreGyhService;
 import com.drcnet.highway.service.TietouService;
+import com.drcnet.highway.service.dataclean.TietouCleanService;
 import com.drcnet.highway.service.dic.TietouCarDicService;
 import com.drcnet.highway.util.DownloadUtil;
 import com.drcnet.highway.util.EntityUtil;
@@ -56,6 +55,8 @@ public class MainPageController {
     private TietouScoreGyhService tietouScoreGyhService;
     @Resource
     private TietouExtractionService tietouExtractionService;
+    @Resource
+    private TietouCleanService tietouCleanService;
 
 
     @GetMapping("queryCarNo")
@@ -192,6 +193,30 @@ public class MainPageController {
             return Result.error(TipsConsts.SERVER_ERROR);
         }
 
+    }
+
+    /**
+     * 统计二绕互相之间通行的次数
+     * 新版首页展示需要
+     * @return
+     */
+    @ApiOperation("修改static表内的score、cheating、violation、label的值")
+    @GetMapping("statistic2ndCount")
+    public Result statistic2ndCount(){
+        List<StationTripCountDto> tripCountList = tietouCleanService.statistic2ndCount();
+        return Result.ok(tripCountList);
+    }
+
+    /**
+     * 统计所有通行记录里每个车型的数量
+     * 新版首页展示需要
+     * @return
+     */
+    @ApiOperation("修改static表内的score、cheating、violation、label的值")
+    @GetMapping("statisticCarTypeCount")
+    public Result statisticCarTypeCount(){
+        List<CarTypeCountDto> carTypeCountDtoList = tietouService.statisticCarTypeCount();
+        return Result.ok(carTypeCountDtoList);
     }
 
 }

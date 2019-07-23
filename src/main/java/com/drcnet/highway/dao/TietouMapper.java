@@ -1,6 +1,8 @@
 package com.drcnet.highway.dao;
 
 import com.drcnet.highway.domain.SameCarNum;
+import com.drcnet.highway.dto.response.CarTypeCountDto;
+import com.drcnet.highway.dto.response.StationTripCountDto;
 import com.drcnet.highway.dto.*;
 import com.drcnet.highway.dto.request.BlackDetailQueryDto;
 import com.drcnet.highway.dto.request.CarMonthQueryDto;
@@ -245,4 +247,12 @@ public interface TietouMapper extends MyMapper<TietouOrigin> {
     int updateVlpIdById(@Param("vlpId") Integer vlpId, @Param("id") Integer id);
 
     int updateVlpIdAndEnvlpIdById(@Param("envlpId") Integer envlpId, @Param("vlpId") Integer vlpId, @Param("id") Integer id);
+
+    /**
+     * 统计二绕站点之间互相通行的数据
+     * @return
+     */
+    List<StationTripCountDto> statistic2ndCount();
+
+    List<CarTypeCountDto> statisticCarTypeCount();
 }
