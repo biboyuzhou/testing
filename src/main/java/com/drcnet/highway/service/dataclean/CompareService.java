@@ -1389,7 +1389,8 @@ public class CompareService {
                 origin.setTotalweight(Integer.parseInt(row.getCell(29).getStringCellValue()));
                 origin.setWeightLimitation(Integer.parseInt(row.getCell(30).getStringCellValue()));
                 origin.setAxlenum(Integer.parseInt(row.getCell(32).getStringCellValue()));
-                //origin.setLastmoney(BigDecimal.);
+                origin.setLastmoney(new BigDecimal(Double.valueOf(row.getCell(34).getStringCellValue())));
+
 
 
 

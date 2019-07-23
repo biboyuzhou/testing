@@ -4,6 +4,7 @@ import com.drcnet.highway.common.BeanConvertUtil;
 import com.drcnet.highway.config.ConfigConsts;
 import com.drcnet.highway.dao.*;
 import com.drcnet.highway.domain.StatisticCount;
+import com.drcnet.highway.dto.response.CommonTypeCountDto;
 import com.drcnet.highway.dto.response.StationTripCountDto;
 import com.drcnet.highway.entity.*;
 import com.drcnet.highway.entity.dic.StationDic;
@@ -1616,12 +1617,19 @@ public class TietouCleanService {
                 dto.setRkId((Integer) linkedHashMap.get("rkId"));
                 dto.setRkName((String) linkedHashMap.get("rkName"));
                 dto.setNum((Integer) linkedHashMap.get("num"));
+                dto.setTotalCount((Integer) linkedHashMap.get("totalCount"));
                 tripCountList.add(dto);
             }
         } else {
+            List<CommonTypeCountDto> countDtoList = tietouMapper.statisticCkCount();
+            Map<Integer, Integer> stationCountMap = new HashMap<>(countDtoList.size());
+            for (CommonTypeCountDto commonTypeCountDto : countDtoList) {
+                stationCountMap.put(commonTypeCountDto.getType(), commonTypeCountDto.getCount());
+            }
             tripCountList = tietouMapper.statistic2ndCount();
             Map<String, StationTripCountDto> map = new HashMap<>(tripCountList.size());
             for (StationTripCountDto tripCount : tripCountList) {
+                tripCount.setTotalCount(stationCountMap.get(tripCount.getCkId()));
                 StringBuilder sb = new StringBuilder(String.valueOf(tripCount.getRkId()));
                 sb.append("-").append(tripCount.getCkId());
                 map.put(sb.toString(), tripCount);
@@ -1630,5 +1638,9 @@ public class TietouCleanService {
         }
 
         return tripCountList;
+    }
+
+    public void deleteCache(String key) {
+        redisTemplate.delete(key);
     }
 }

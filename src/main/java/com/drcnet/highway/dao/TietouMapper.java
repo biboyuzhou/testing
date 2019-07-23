@@ -1,7 +1,8 @@
 package com.drcnet.highway.dao;
 
 import com.drcnet.highway.domain.SameCarNum;
-import com.drcnet.highway.dto.response.CarTypeCountDto;
+import com.drcnet.highway.dto.response.CommonTypeCountDto;
+import com.drcnet.highway.dto.response.StationRiskCountDto;
 import com.drcnet.highway.dto.response.StationTripCountDto;
 import com.drcnet.highway.dto.*;
 import com.drcnet.highway.dto.request.BlackDetailQueryDto;
@@ -254,5 +255,17 @@ public interface TietouMapper extends MyMapper<TietouOrigin> {
      */
     List<StationTripCountDto> statistic2ndCount();
 
-    List<CarTypeCountDto> statisticCarTypeCount();
+    List<CommonTypeCountDto> statisticCarTypeCount();
+
+    /**
+     * 统计每个出口站的行程记录
+     * @return
+     */
+    List<CommonTypeCountDto> statisticCkCount();
+
+    /**
+     * 统计二绕每个站点的车辆总数、高中低风险数
+     * @return
+     */
+    List<StationRiskCountDto> statistic2ndStationRiskCount();
 }

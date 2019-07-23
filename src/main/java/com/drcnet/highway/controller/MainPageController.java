@@ -87,7 +87,7 @@ public class MainPageController {
 
     @GetMapping("getCheatingCount")
     @ApiOperation("查询某个月份违规数量")
-    public Result getCheatingCount(@RequestParam Integer beginMonth,Integer carType){
+    public Result getCheatingCount(Integer beginMonth,Integer carType){
         if (carType == null){
             carType = -1;
         }
@@ -200,7 +200,7 @@ public class MainPageController {
      * 新版首页展示需要
      * @return
      */
-    @ApiOperation("修改static表内的score、cheating、violation、label的值")
+    @ApiOperation("统计二绕互相之间通行的次数")
     @GetMapping("statistic2ndCount")
     public Result statistic2ndCount(){
         List<StationTripCountDto> tripCountList = tietouCleanService.statistic2ndCount();
@@ -212,11 +212,23 @@ public class MainPageController {
      * 新版首页展示需要
      * @return
      */
-    @ApiOperation("修改static表内的score、cheating、violation、label的值")
+    @ApiOperation("统计所有通行记录里每个车型的数量")
     @GetMapping("statisticCarTypeCount")
     public Result statisticCarTypeCount(){
-        List<CarTypeCountDto> carTypeCountDtoList = tietouService.statisticCarTypeCount();
-        return Result.ok(carTypeCountDtoList);
+        List<CommonTypeCountDto> commonTypeCountDtoList = tietouService.statisticCarTypeCount();
+        return Result.ok(commonTypeCountDtoList);
+    }
+
+    /**
+     * 统计二绕每个站点出的车辆总数、高中低风险数
+     * 新版首页展示需要
+     * @return
+     */
+    @ApiOperation("统计二绕每个站点出的车辆总数、高中低风险数")
+    @GetMapping("statistic2ndStationRiskCount")
+    public Result statistic2ndStationRiskCount(){
+        List<StationRiskCountDto> riskCountDtoList = tietouService.statistic2ndStationRiskCount();
+        return Result.ok(riskCountDtoList);
     }
 
 }

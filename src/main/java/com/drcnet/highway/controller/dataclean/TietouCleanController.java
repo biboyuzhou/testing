@@ -264,4 +264,16 @@ public class TietouCleanController {
         return Result.ok();
     }
 
+    /**
+     * 删除缓存
+     * @return
+     */
+    @ApiOperation("删除缓存")
+    @GetMapping("deleteCache")
+    public Result deleteCache(String key){
+        tietouCleanService.deleteCache(key);
+        return Result.ok();
+    }
+
+
 }

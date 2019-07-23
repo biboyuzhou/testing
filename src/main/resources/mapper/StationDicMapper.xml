@@ -13,4 +13,13 @@
     <select id="select2ndRound" resultMap="BaseResultMap">
       select * from station_dic where mark = 1
     </select>
+
+  <select id="list2ndStation" resultType="com.drcnet.highway.dto.response.StationRiskCountDto">
+    select id ckId,station_name ckName,longitude,latitude from station_dic
+     where id in (341,125,460,39,302,
+	              276,122,123,120,35,
+                  608,468,197,129,226,
+                  134,487,148,91,401,
+                  89,150,34,400)
+  </select>
 </mapper>

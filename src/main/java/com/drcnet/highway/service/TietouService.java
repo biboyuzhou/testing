@@ -63,6 +63,8 @@ public class TietouService {
     private StationFeatureStatisticsMapper stationFeatureStatisticsMapper;
     @Resource
     private ApplicationContext applicationContext;
+    @Resource
+    private StationDicMapper stationDicMapper;
 
     @Resource
     private RedisTemplate<String, Object> redisTemplate;
@@ -261,8 +263,10 @@ public class TietouService {
      * @param beginMonth
      * @param carType
      */
-    @Cacheable(value = "cheatingCar", key = "#beginMonth.toString().concat('-').concat(#carType)")
     public RiskAmountDto getCheatingCount(Integer beginMonth, Integer carType) {
+        if (beginMonth == null) {
+            beginMonth = 999999;
+        }
         TietouMonthStatistic query = new TietouMonthStatistic();
         query.setMonthTime(beginMonth);
         query.setCarType(carType);
@@ -716,27 +720,74 @@ public class TietouService {
      * 新版首页展示需要
      * @return
      */
-    public List<CarTypeCountDto> statisticCarTypeCount() {
-        List<CarTypeCountDto> carTypeCountDtoList = new ArrayList<>();
+    public List<CommonTypeCountDto> statisticCarTypeCount() {
+        List<CommonTypeCountDto> commonTypeCountDtoList = new ArrayList<>();
         //统计所有通行记录里每个车型的数量
         BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps("carType_count");
         if (hashOperations.size() > 0) {
             List<Object> objectList = hashOperations.values();
             for(Object o : objectList) {
-                CarTypeCountDto dto = new CarTypeCountDto();
+                CommonTypeCountDto dto = new CommonTypeCountDto();
                 LinkedHashMap<String, Object> linkedHashMap = (LinkedHashMap<String, Object>) o;
-                dto.setCarType((Integer) linkedHashMap.get("carType"));
+                dto.setType((Integer) linkedHashMap.get("type"));
                 dto.setCount((Integer) linkedHashMap.get("count"));
-                carTypeCountDtoList.add(dto);
+                commonTypeCountDtoList.add(dto);
             }
         } else {
-            carTypeCountDtoList = tietouMapper.statisticCarTypeCount();
-            Map<String, CarTypeCountDto> map = new HashMap<>(carTypeCountDtoList.size());
-            for (CarTypeCountDto carTypeCountDto : carTypeCountDtoList) {
-                map.put(String.valueOf(carTypeCountDto.getCarType()), carTypeCountDto);
+            commonTypeCountDtoList = tietouMapper.statisticCarTypeCount();
+            Map<String, CommonTypeCountDto> map = new HashMap<>(commonTypeCountDtoList.size());
+            for (CommonTypeCountDto commonTypeCountDto : commonTypeCountDtoList) {
+                map.put(String.valueOf(commonTypeCountDto.getType()), commonTypeCountDto);
             }
             hashOperations.putAll(map);
         }
-        return carTypeCountDtoList;
+        return commonTypeCountDtoList;
+    }
+
+    /**
+     * 统计二绕每个站点出的车辆总数、高中低风险数
+     * 新版首页展示需要
+     * @return
+     */
+    public List<StationRiskCountDto> statistic2ndStationRiskCount() {
+        List<StationRiskCountDto> riskCountDtoList = new ArrayList<>();
+        //统计所有通行记录里每个车型的数量
+        BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps("2nd_station_risk_count");
+        if (hashOperations.size() > 0) {
+            List<Object> objectList = hashOperations.values();
+            for(Object o : objectList) {
+                StationRiskCountDto dto = new StationRiskCountDto();
+                LinkedHashMap<String, Object> linkedHashMap = (LinkedHashMap<String, Object>) o;
+                dto.setCkId((Integer) linkedHashMap.get("ckId"));
+                dto.setCkName((String) linkedHashMap.get("ckName"));
+                dto.setLongitude((String) linkedHashMap.get("longitude"));
+                dto.setLatitude((String) linkedHashMap.get("latitude"));
+                dto.setTotal((Integer) linkedHashMap.get("total"));
+                dto.setHigh((Integer) linkedHashMap.get("high"));
+                dto.setMiddle((Integer) linkedHashMap.get("middle"));
+                dto.setLow((Integer) linkedHashMap.get("low"));
+                riskCountDtoList.add(dto);
+            }
+            riskCountDtoList.sort(Comparator.comparing(StationRiskCountDto::getHigh).reversed().thenComparing(StationRiskCountDto::getTotal));
+        } else {
+            riskCountDtoList = tietouMapper.statistic2ndStationRiskCount();
+            List<StationRiskCountDto> stationDicList = stationDicMapper.list2ndStation();
+            Map<String, StationRiskCountDto> map = new HashMap<>(riskCountDtoList.size());
+            for (StationRiskCountDto dto : riskCountDtoList) {
+                for (StationRiskCountDto stu : stationDicList) {
+                    if (dto.getCkId().equals(stu.getCkId())) {
+                        dto.setCkName(stu.getCkName());
+                        dto.setLatitude(stu.getLatitude());
+                        dto.setLongitude(stu.getLongitude());
+                        break;
+                    }
+                }
+                map.put(String.valueOf(dto.getCkId()), dto);
+            }
+
+            hashOperations.putAll(map);
+        }
+
+        return riskCountDtoList;
     }
 }

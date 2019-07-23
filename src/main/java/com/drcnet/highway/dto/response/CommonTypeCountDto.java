@@ -12,10 +12,10 @@ import java.io.Serializable;
  **/
 @Setter
 @Getter
-public class CarTypeCountDto implements Serializable {
+public class CommonTypeCountDto implements Serializable {
     private static final long serialVersionUID = -5227148721843216926L;
 
-    private Integer carType;
+    private Integer type;
     private Integer count;
 
 }

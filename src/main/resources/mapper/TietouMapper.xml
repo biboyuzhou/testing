@@ -697,7 +697,29 @@
                             89,150,34,400) group by rk_id,ck_id
     </select>
 
-    <select id="statisticCarTypeCount" resultType="com.drcnet.highway.dto.response.CarTypeCountDto">
-        select vc carType,count(1) count from tietou where vc BETWEEN 1 and 15 group by vc order by vc
+    <select id="statisticCarTypeCount" resultType="com.drcnet.highway.dto.response.CommonTypeCountDto">
+        select vc type,count(1) count from tietou where vc BETWEEN 1 and 15 group by vc order by vc
+    </select>
+
+    <select id="statisticCkCount" resultType="com.drcnet.highway.dto.response.CommonTypeCountDto">
+        select ck_id type,count(1) count from tietou where ck_id in (341,125,460,39,302,
+	        276,122,123,120,35,
+            608,468,197,129,226,
+            134,487,148,91,401,
+            89,150,34,400) group by ck_id
+    </select>
+
+    <select id="statistic2ndStationRiskCount" resultType="com.drcnet.highway.dto.response.StationRiskCountDto">
+        select count(DISTINCT r.vlp_id) total,r.ck_id ckId,
+		       count(DISTINCT case when s.score BETWEEN 80 and 100 then r.vlp_id else null end) high,
+	           count(DISTINCT case when s.score BETWEEN 50 and 79.99 then r.vlp_id else null end) middle,
+	            count(DISTINCT case when s.score BETWEEN 20 and 49.99 then r.vlp_id else null end) low
+	      from (
+	          SELECT t.ck_id,t.vlp_id from tietou t where t.ck_id in (341,125,460,39,302,
+	              276,122,123,120,35,
+                  608,468,197,129,226,
+                  134,487,148,91,401,
+                  89,150,34,400)) r ,tietou_feature_statistic s
+              where r.vlp_id = s.vlp_id group by r.ck_id order by high desc
     </select>
 </mapper>

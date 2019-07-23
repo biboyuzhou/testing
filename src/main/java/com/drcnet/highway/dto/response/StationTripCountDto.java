@@ -19,5 +19,12 @@ public class StationTripCountDto implements Serializable {
     private String rkName;
     private Integer ckId;
     private String ckName;
+    /**
+     * 以出口和入口为维度，通行记录数
+     */
     private Integer num;
+    /**
+     * 以出口站为维度，总的通行记录数
+     */
+    private Integer totalCount;
 }
