@@ -680,21 +680,17 @@
     </update>
 
     <select id="statistic2ndCount" resultType="com.drcnet.highway.dto.response.StationTripCountDto">
-        select  rk_id rkId,
-                (select station_name from station_dic where id = rk_id ) rkName,
-                ck_id ckId,
-                (select station_name from station_dic where id = ck_id ) ckName,
-                count(1) num from tietou t
-        where rk_id in(341,125,460,39,302,
-                       276,122,123,120,35,
-                       608,468,197,129,226,
-                        134,487,148,91,401,
-                        89,150,34,400)
-              and ck_id in (341,125,460,39,302,
-                            276,122,123,120,35,
-                            608,468,197,129,226,
-                            134,487,148,91,401,
-                            89,150,34,400) group by rk_id,ck_id
+        select t.rk_id rkId,
+                (select station_name from station_dic where id = t.rk_id ) rkName,
+	            t.ck_id ckId,
+	            (select station_name from station_dic where id = t.ck_id ) ckName,
+	            count(1) num
+		from (select ck_id,rk_id,vlp_id from tietou
+		              where ck_id in (341,125,460,39,302, 276,122,123,120,35, 608,468,197,129,226, 134,487,148,91,401, 89,150,34,400)
+						and rk_id in(341,125,460,39,302, 276,122,123,120,35, 608,468,197,129,226, 134,487,148,91,401, 89,150,34,400)) t ,
+			  (select vlp_id from tietou_feature_statistic s where score > 0) s
+		where t.vlp_id = s.vlp_id
+		group by t.rk_id,t.ck_id
     </select>
 
     <select id="statisticCarTypeCount" resultType="com.drcnet.highway.dto.response.CommonTypeCountDto">
@@ -702,11 +698,12 @@
     </select>
 
     <select id="statisticCkCount" resultType="com.drcnet.highway.dto.response.CommonTypeCountDto">
-        select ck_id type,count(1) count from tietou where ck_id in (341,125,460,39,302,
-	        276,122,123,120,35,
-            608,468,197,129,226,
-            134,487,148,91,401,
-            89,150,34,400) group by ck_id
+        select r.ck_id type,count(1) count
+        from
+          (select ck_id,vlp_id from tietou
+              where ck_id in (341,125,460,39,302, 276,122,123,120,35, 608,468,197,129,226, 134,487,148,91,401, 89,150,34,400)) r,
+	      (select vlp_id from tietou_feature_statistic s where score > 0) s
+	      where r.vlp_id = s.vlp_id group by r.ck_id
     </select>
 
     <select id="statistic2ndStationRiskCount" resultType="com.drcnet.highway.dto.response.StationRiskCountDto">
