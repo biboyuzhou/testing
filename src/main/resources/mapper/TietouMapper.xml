@@ -688,7 +688,7 @@
 		from (select ck_id,rk_id,vlp_id from tietou
 		              where ck_id in (341,125,460,39,302, 276,122,123,120,35, 608,468,197,129,226, 134,487,148,91,401, 89,150,34,400)
 						and rk_id in(341,125,460,39,302, 276,122,123,120,35, 608,468,197,129,226, 134,487,148,91,401, 89,150,34,400)) t ,
-			  (select vlp_id from tietou_feature_statistic s where score > 0) s
+			  (select vlp_id from tietou_feature_statistic s where score > 20) s
 		where t.vlp_id = s.vlp_id
 		group by t.rk_id,t.ck_id
     </select>
@@ -702,7 +702,7 @@
         from
           (select ck_id,vlp_id from tietou
               where ck_id in (341,125,460,39,302, 276,122,123,120,35, 608,468,197,129,226, 134,487,148,91,401, 89,150,34,400)) r,
-	      (select vlp_id from tietou_feature_statistic s where score > 0) s
+	      (select vlp_id from tietou_feature_statistic s where score > 20) s
 	      where r.vlp_id = s.vlp_id group by r.ck_id
     </select>
 
