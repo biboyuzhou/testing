@@ -31,6 +31,8 @@ import org.springframework.web.bind.annotation.*;
 import javax.annotation.Resource;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 /**
  * @Author: penghao
@@ -63,7 +65,7 @@ public class CarDetailController {
         TurnoverVo turnoverVo = new TurnoverVo();
         //查询日区间
 //        Future<List<PeriodAmountDto>> periodViolationAmount = tietouService.listPeriodViolationAmount(carId, beginMonth, null);
-//        Future<List<TurnoverStationDto>> listFuture = tietouService.listInAndOutStation(carId, beginMonth);
+        Future<List<TurnoverStationDto>> listFuture = tietouService.listInAndOutStation(carId, beginMonth);
         //查询车牌
         TietouCarDic carInfo = tietouService.getCarInfoById(carId);
         if (carInfo == null){
@@ -79,14 +81,13 @@ public class CarDetailController {
         turnoverVo.setViolationScore(maxViolationScore);
         turnoverVo.setCarNo(carInfo.getCarNo());
         turnoverVo.setThroughAmount(countThrough);
-
-        /*try {
+        try {
             turnoverVo.setStationTurnovers(listFuture.get());
-            turnoverVo.setPeriodAmount(periodViolationAmount.get());
-        } catch (InterruptedException|ExecutionException e) {
+//            turnoverVo.setPeriodAmount(periodViolationAmount.get());
+        } catch (InterruptedException| ExecutionException e) {
             log.error("{}",e);
             Thread.currentThread().interrupt();
-        }*/
+        }
 
         if (carInfo.getWhiteFlag()){
             turnoverVo.setType(BlackStatusEnum.WHITE.code);

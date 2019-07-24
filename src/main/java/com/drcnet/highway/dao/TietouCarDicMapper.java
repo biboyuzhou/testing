@@ -37,4 +37,6 @@ public interface TietouCarDicMapper extends MyMapper<TietouCarDic> {
     List<TietouCarDic> selectByIdIn(@Param("keys") Set<Object> keys);
 
     int updateMaxAndMinWeight(@Param("keys") Set<Object> keys,@Param("maxId") Integer maxId);
+
+    TietouCarDic selectByCarNoFromAll(@Param("carNo") String carNo);
 }

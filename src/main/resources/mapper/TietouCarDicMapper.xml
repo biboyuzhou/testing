@@ -55,6 +55,9 @@
   <select id="selectByCarNo" resultMap="BaseResultMap">
     select id,car_no from car_dic where car_no = #{carNo}
   </select>
+  <select id="selectByCarNoFromAll" resultMap="BaseResultMap">
+    select id,car_no from car_dic_all where car_no = #{carNo}
+  </select>
   <select id="selectAbnormalCarDic" resultMap="BaseResultMap">
     select id from car_dic where use_flag != 0 and (HEX(car_no) not REGEXP '^(e[4-9][0-9a-f]{4}).*' or car_no like '%警' or SUBSTRING(car_no,2,5) REGEXP '^[^A-Za-z].*'
     or (CHAR_LENGTH(car_no) = 7 and SUBSTRING(car_no,3,5) REGEXP '.*[a-zA-Z].*[a-zA-Z].*[a-zA-Z].*') or car_no rlike '#' or (CHAR_LENGTH(car_no) &lt; 7 or CHAR_LENGTH(car_no) >8))
@@ -111,4 +114,5 @@
   <select id="selectById" resultMap="BaseResultMap">
     select * from car_dic where id = #{id}
   </select>
+
 </mapper>

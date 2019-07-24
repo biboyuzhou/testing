@@ -17,6 +17,8 @@ import org.apache.poi.xssf.usermodel.XSSFCell;
 import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.data.redis.core.BoundHashOperations;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -39,11 +41,13 @@ public class TietouCarDicService implements BaseService<TietouCarDic, Integer> {
     private TietouCarDicMapper thisMapper;
     @Resource
     private TietouBlackListService tietouBlackListService;
+    @Resource
+    private RedisTemplate<String, Object> redisTemplate;
 
     /**
      * 模糊查询车牌号
      *
-     * @param carNo 车牌号
+     * @param carNo   车牌号
      * @param carType
      * @return
      */
@@ -214,6 +218,48 @@ public class TietouCarDicService implements BaseService<TietouCarDic, Integer> {
             return true;
         }
         return false;
+    }
+
+    /**
+     * 根据车牌号获得对象
+     *
+     * @param carNo 车牌号
+     * @return
+     */
+    public Integer getOrInsertByName(String carNo) {
+        BoundHashOperations<String, String, Integer> cacheOperation = redisTemplate.boundHashOps("car_cache");
+        BoundHashOperations<String, String, Integer> cacheOriginOperation = redisTemplate.boundHashOps("car_cache_origin");
+        carNo = carNo.trim();
+        Integer id = cacheOperation.get(carNo);
+        if (id == null) {
+            id = cacheOriginOperation.get(carNo);
+            if (id == null) {
+                //查询原始表
+                TietouCarDic res = thisMapper.selectByCarNoFromAll(carNo);
+                if (res != null){
+                    return res.getId();
+                }
+
+                TietouCarDic carDic = new TietouCarDic();
+                carDic.setUseFlag(true);
+                carDic.setCreateTime(LocalDateTime.now());
+                carDic.setCarNo(carNo);
+                carDic.setWhiteFlag(false);
+                if (carNo.endsWith("警") || carNo.length() < 7 || carNo.length() > 8) {
+                    carDic.setUseFlag(false);
+                }
+                thisMapper.insertSelective(carDic);
+                id = carDic.getId();
+                log.info("新增一个车牌:{}", carNo);
+                cacheOperation.put(carNo,id);
+                cacheOriginOperation.put(carNo,id);
+                if (!carDic.getUseFlag()){
+                    BoundHashOperations<String, String, String> cacheUselessOperation = redisTemplate.boundHashOps("car_cache_useless");
+                    cacheUselessOperation.put(String.valueOf(id),carNo);
+                }
+            }
+        }
+        return id;
     }
 
 }
