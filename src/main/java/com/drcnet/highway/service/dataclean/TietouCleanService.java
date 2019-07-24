@@ -1640,7 +1640,5 @@ public class TietouCleanService {
         return tripCountList;
     }
 
-    public void deleteCache(String key) {
-        redisTemplate.delete(key);
-    }
+
 }

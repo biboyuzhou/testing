@@ -247,5 +247,13 @@ public class DataCleanService {
         return res;
     }
 
+    /**
+     * 删除缓存数据
+     * @param key
+     */
+    public void deleteCache(String key) {
+        redisTemplate.delete(key);
+    }
+
 
 }
