@@ -40,13 +40,13 @@
         </choose>
         <choose>
               <when test="riskFlag == null or riskFlag == 0">
-                  and ts.score &gt; 60
+                  and ts.score &gt; 80
               </when>
               <when test="riskFlag == 1">
-                  and ts.score between 40 and 60
+                  and ts.score between 50 and 80
               </when>
               <otherwise>
-                  and ts.score between 20 and 39.9
+                  and ts.score between 20 and 49.99
               </otherwise>
           </choose>
         <choose>
