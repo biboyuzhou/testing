@@ -24,5 +24,8 @@ public class CheatingListDto extends PagingDto {
 
     private String flags;
 
+    /**
+     * 排序字段，按照传入的风险项的总次数排序
+     */
     private List<String> fields;
 }

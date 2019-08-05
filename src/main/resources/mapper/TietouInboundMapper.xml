@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.drcnet.highway.dao.TietouInboundMapper">
+  <resultMap id="BaseResultMap" type="com.drcnet.highway.entity.TietouInbound">
+    <!--
+      WARNING - @mbg.generated
+    -->
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="month_time" jdbcType="INTEGER" property="monthTime" />
+    <result column="entime" jdbcType="TIMESTAMP" property="entime" />
+    <result column="rk" jdbcType="VARCHAR" property="rk" />
+    <result column="rk_id" jdbcType="INTEGER" property="rkId" />
+    <result column="envlp" jdbcType="VARCHAR" property="envlp" />
+    <result column="envlp_id" jdbcType="INTEGER" property="envlpId" />
+    <result column="envt" jdbcType="INTEGER" property="envt" />
+    <result column="envc" jdbcType="INTEGER" property="envc" />
+    <result column="inlane" jdbcType="VARCHAR" property="inlane" />
+    <result column="totalweight" jdbcType="INTEGER" property="totalweight" />
+    <result column="axlenum" jdbcType="INTEGER" property="axlenum" />
+    <result column="card" jdbcType="VARCHAR" property="card" />
+    <result column="inv" jdbcType="VARCHAR" property="inv" />
+    <result column="creatime" jdbcType="TIMESTAMP" property="creatime" />
+  </resultMap>
+</mapper>

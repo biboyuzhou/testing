@@ -34,4 +34,9 @@ public class TravelRecordQueryDto extends PagingDto {
      * 车辆类型
      */
     private Integer carType;
+
+    /**
+     * 高速通行卡号
+     */
+    private String card;
 }

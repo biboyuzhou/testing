@@ -4,8 +4,10 @@ import com.drcnet.highway.dao.TietouFeatureExtractionStandardScoreMapper;
 import com.drcnet.highway.dao.TietouFeatureStatisticGyhMapper;
 import com.drcnet.highway.dto.RiskPeriodAmount;
 import com.drcnet.highway.dto.request.CheatingListDto;
+import com.drcnet.highway.dto.request.CheatingListTimeSearchDto;
 import com.drcnet.highway.entity.TietouFeatureStatisticGyh;
 import com.drcnet.highway.exception.MyException;
+import com.drcnet.highway.util.DateUtils;
 import com.drcnet.highway.util.ExcelUtil;
 import com.drcnet.highway.util.templates.BaseService;
 import com.drcnet.highway.util.templates.MyMapper;
@@ -70,11 +72,38 @@ public class TietouScoreGyhService implements BaseService<TietouFeatureStatistic
     }
 
     /**
+     * 根据时间段查询作弊车辆列表
+     * @return
+     */
+    public PageVo<TietouFeatureStatisticGyh> listCheatingCarByTime(CheatingListTimeSearchDto dto) {
+        PageHelper.startPage(dto.getPageNum(),dto.getPageSize());
+        List<TietouFeatureStatisticGyh> select = new ArrayList<>();
+        if (!StringUtils.isEmpty(dto.getFlags())) {
+            String[] strArray = dto.getFlags().split(",");
+            dto.setFields(Arrays.asList(strArray));
+        }
+        if (StringUtils.isEmpty(dto.getBeginDate())) {
+            dto.setBeginDate(DateUtils.getFirstDayOfCurrentMonth());
+        }
+        if (StringUtils.isEmpty(dto.getEndDate())) {
+            dto.setEndDate(DateUtils.getCurrentDay());
+        }
+        try {
+            select = thisMapper.listCheatingCarByTime(dto);
+        }catch (Exception e) {
+            log.error("查询首页统计信息出错！", e);
+            throw new MyException("查询风险信息出错！");
+        } finally {
+            return PageVo.of(select);
+        }
+    }
+
+    /**
      * 查询每种风险的数量
      * @param beginMonth
      * @param carType
      */
-    @Cacheable(value = "riskProportion",key = "#beginMonth.toString().concat('-').concat(#carType)")
+    @Cacheable(value = "riskProportion",key = "#carType")
     public RiskPeriodAmount getRiskProportion(Integer beginMonth, Integer carType) {
         return thisMapper.getRiskProportion(carType);
     }
@@ -130,6 +159,4 @@ public class TietouScoreGyhService implements BaseService<TietouFeatureStatistic
         tietouFeatureStatisticGyhMapper.insert(tietouFeatureStatisticGyh);
         latch.countDown();
     }
-
-
 }

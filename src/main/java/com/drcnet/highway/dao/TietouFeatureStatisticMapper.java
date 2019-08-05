@@ -51,7 +51,7 @@ public interface TietouFeatureStatisticMapper extends MyMapper<TietouFeatureStat
      * @param maxId
      * @return
      */
-    int updateIsFreeCar(@Param("maxId") Integer maxId);
+    int updateIsFreeCar(@Param("maxId") Integer maxId, @Param("start") Integer start);
 
     int copyScore2Static();
 }

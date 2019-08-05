@@ -538,7 +538,7 @@
     </select>
 
     <select id="queryTravelRecords" resultMap="BaseResultMap">
-        select * from tietou_test
+        select * from tietou_2019
         <where>
             <if test="envlpId !=null">
                 and envlp_id = #{envlpId}
@@ -560,6 +560,9 @@
             </if>
             <if test="carType !=null and carType == 1">
                 and vc &lt; 10
+            </if>
+            <if test="card !=null ">
+                and card = #{card}
             </if>
         </where>
         order by extime desc
@@ -680,17 +683,17 @@
     </update>
 
     <select id="statistic2ndCount" resultType="com.drcnet.highway.dto.response.StationTripCountDto">
-        select t.rk_id rkId,
-                (select station_name from station_dic where id = t.rk_id ) rkName,
-	            t.ck_id ckId,
-	            (select station_name from station_dic where id = t.ck_id ) ckName,
-	            count(1) num
+        select t.ck_id ckId,
+			    (select station_name from station_dic where id = t.ck_id ) ckName,
+				t.rk_id rkId,
+			    (select station_name from station_dic where id = t.rk_id ) rkName,
+	            count(DISTINCT case when s.score BETWEEN 20 and 100 then t.vlp_id else null end)  num
 		from (select ck_id,rk_id,vlp_id from tietou
 		              where ck_id in (341,125,460,39,302, 276,122,123,120,35, 608,468,197,129,226, 134,487,148,91,401, 89,150,34,400)
 						and rk_id in(341,125,460,39,302, 276,122,123,120,35, 608,468,197,129,226, 134,487,148,91,401, 89,150,34,400)) t ,
-			  (select vlp_id from tietou_feature_statistic s where score > 20) s
+			  (select vlp_id,score from tietou_feature_statistic s where score > 50) s
 		where t.vlp_id = s.vlp_id
-		group by t.rk_id,t.ck_id
+		group by t.ck_id,t.rk_id
     </select>
 
     <select id="statisticCarTypeCount" resultType="com.drcnet.highway.dto.response.CommonTypeCountDto">
@@ -698,12 +701,13 @@
     </select>
 
     <select id="statisticCkCount" resultType="com.drcnet.highway.dto.response.CommonTypeCountDto">
-        select r.ck_id type,count(1) count
+        select t.ck_id type,count(DISTINCT case when s.score BETWEEN 20 and 100 then t.vlp_id else null end) count
         from
           (select ck_id,vlp_id from tietou
-              where ck_id in (341,125,460,39,302, 276,122,123,120,35, 608,468,197,129,226, 134,487,148,91,401, 89,150,34,400)) r,
-	      (select vlp_id from tietou_feature_statistic s where score > 20) s
-	      where r.vlp_id = s.vlp_id group by r.ck_id
+              where ck_id in (341,125,460,39,302, 276,122,123,120,35, 608,468,197,129,226, 134,487,148,91,401, 89,150,34,400)
+                and rk_id in (341,125,460,39,302, 276,122,123,120,35, 608,468,197,129,226, 134,487,148,91,401, 89,150,34,400)) t,
+	      (select vlp_id,score from tietou_feature_statistic s where score > 50) s
+	      where t.vlp_id = s.vlp_id group by t.ck_id
     </select>
 
     <select id="statistic2ndStationRiskCount" resultType="com.drcnet.highway.dto.response.StationRiskCountDto">
@@ -716,7 +720,50 @@
 	              276,122,123,120,35,
                   608,468,197,129,226,
                   134,487,148,91,401,
-                  89,150,34,400)) r ,tietou_feature_statistic s
+                  89,150,34,400)) r ,(select vlp_id,score from tietou_feature_statistic where score >= 20) s
               where r.vlp_id = s.vlp_id group by r.ck_id order by high desc
+    </select>
+
+    <select id="testMycat" resultType="java.lang.Integer">
+        INSERT INTO `tietou_test` (
+        routing_id,
+        month_time,
+        entime,
+        rk,
+        rk_id,
+        envlp,
+        envlp_id,
+        envt,
+        envc,
+        extime,
+        ck,
+        ck_id,
+        vlp,
+        vlp_id,
+        vc,
+        vt,
+        exlane,
+        oper,
+        lastmoney,
+        freemoney,
+        totalweight,
+        axlenum,
+        tolldistance,
+        card,
+        flagstationinfo,
+        realflagstationinfo,
+        inv,
+        weight_limitation
+        ) VALUES (#{routingId}, '201907', '2019-07-02 23:41:07', '成灌成都站', '41', '川A0TL52', '393109', '1', '1', '2019-07-02 23:56:10', '二绕西温江万春站', '89', '川HBM389', '8924808', '1', '0', '10', null, '14.000', '0.000', '2050', '2', '23060', '5001016600148749', null, null, null, '0');
+    </select>
+
+    <select id="testListMycat" resultType="java.lang.Long">
+        select id from tietou_test
+        <where>
+            <if test="routingId != null">
+               routing_id = #{routingId}
+            </if>
+        </where>
+        limit 10
     </select>
 </mapper>

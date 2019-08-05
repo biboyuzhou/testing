@@ -1234,7 +1234,7 @@ public class CompareService {
      */
     public void checkAndUpdateTietouVlpId() {
         long timeMillis = System.currentTimeMillis();
-        BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps("car_cache_origin");
+        BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps("car_cache");
         Integer maxId = 21611570;
         int distance = 1000000;
         int dis = 100000;
@@ -1311,7 +1311,7 @@ public class CompareService {
         int successAmount = 0;
         int total = 0;
         BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps("station_dic");
-        BoundHashOperations<String, Object, Object> carCache = redisTemplate.boundHashOps("car_cache_origin");
+        BoundHashOperations<String, Object, Object> carCache = redisTemplate.boundHashOps("car_cache");
         List<TietouOrigin> originList = new ArrayList<>(5000);
         try (InputStream is = file.getInputStream()) {
             Workbook workbook = WorkbookFactory.create(is);
@@ -1420,5 +1420,13 @@ public class CompareService {
                 dicList.add(insert);
             }
         }
+    }
+
+    public Integer testMycat(Integer routingId) {
+        /*Integer result = tietouMapper.testMycat(routingId);
+        return result;*/
+
+        List<Long> originList = tietouMapper.testListMycat(routingId);
+        return originList.size();
     }
 }

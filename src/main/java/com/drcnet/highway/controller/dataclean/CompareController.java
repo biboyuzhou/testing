@@ -182,4 +182,12 @@ public class CompareController {
         return Result.ok(amountDto);
     }
 
+
+    @PostMapping("testMycat")
+    @ApiOperation("从新给的数据里找出新的入口或出口站并插入库")
+    public Result testMycat(Integer routingId){
+        compareService.testMycat(routingId);
+        return Result.ok();
+    }
+
 }

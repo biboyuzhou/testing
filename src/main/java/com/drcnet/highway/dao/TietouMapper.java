@@ -171,7 +171,8 @@ public interface TietouMapper extends MyMapper<TietouOrigin> {
      */
     List<TietouOrigin> queryTravelRecords(@Param("envlpId") Integer envlpId, @Param("vlpId") Integer vlpId,
                                           @Param("inStartTime") String inStartTime, @Param("inEndTime") String inEndTime, @Param("outStartTime") String outStartTime,
-                                          @Param("outEndTime") String outEndTime, @Param("oper") String oper, @Param("carType") Integer carType);
+                                          @Param("outEndTime") String outEndTime, @Param("oper") String oper, @Param("carType") Integer carType,
+                                          @Param("card") String card);
 
     /**
      * 根据指定车牌统计进出车牌不一致的各个入口车牌的次数
@@ -268,4 +269,8 @@ public interface TietouMapper extends MyMapper<TietouOrigin> {
      * @return
      */
     List<StationRiskCountDto> statistic2ndStationRiskCount();
+
+    Integer testMycat(@Param("routingId") Integer routingId);
+
+    List<Long> testListMycat(@Param("routingId") Integer routingId);
 }

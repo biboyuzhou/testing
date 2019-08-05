@@ -131,7 +131,7 @@
     where EXISTS
     (select 1 from
       (select COUNT(lastmoney > 0 or null) fee, count(1), COUNT(lastmoney > 0 or null)/COUNT(1) rate,vlp_id,vlp from tietou
-        where id BETWEEN 1 and #{maxId} GROUP BY vlp_id having rate &lt; 0.05 and count(1) > 10) r
+        where id BETWEEN #{start} and #{maxId} GROUP BY vlp_id having rate &lt; 0.05 and count(1) > 10) r
     where r.vlp_id = t.vlp_id)
   </update>
 

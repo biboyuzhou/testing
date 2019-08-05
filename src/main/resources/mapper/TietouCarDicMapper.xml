@@ -33,30 +33,17 @@
     </select>
 
   <select id="getMaxId" resultType="java.lang.Integer">
-    select MAX(id) from
-    <choose>
-      <when test="originFlag != null and originFlag != 1">
-          car_dic_all
-      </when>
-      <otherwise>car_dic</otherwise>
-    </choose>
-    car_dic
+    select MAX(id) from car_dic
   </select>
   <select id="selectByPeriod" resultMap="BaseResultMap">
-    select * from
-    <choose>
-      <when test="originFlag != null and originFlag != 1">
-        car_dic_all
-      </when>
-      <otherwise>car_dic</otherwise>
-    </choose>
+    select * from car_dic
     where id between #{begin} and #{end} and use_flag = true
   </select>
   <select id="selectByCarNo" resultMap="BaseResultMap">
     select id,car_no from car_dic where car_no = #{carNo}
   </select>
   <select id="selectByCarNoFromAll" resultMap="BaseResultMap">
-    select id,car_no from car_dic_all where car_no = #{carNo}
+    select id,car_no from car_dic where car_no = #{carNo}
   </select>
   <select id="selectAbnormalCarDic" resultMap="BaseResultMap">
     select id from car_dic where use_flag != 0 and (HEX(car_no) not REGEXP '^(e[4-9][0-9a-f]{4}).*' or car_no like '%警' or SUBSTRING(car_no,2,5) REGEXP '^[^A-Za-z].*'
@@ -96,7 +83,7 @@
   </insert>
 
   <select id="getIdByCarNo" resultMap="BaseResultMap">
-    select id,car_no from car_dic_all where car_no = #{carNo}
+    select id,car_no from car_dic where car_no = #{carNo}
   </select>
     <select id="selectUsefulAndOverLengthCar" resultMap="BaseResultMap">
       select * from car_dic where char_length(car_no) >7 and use_flag = true

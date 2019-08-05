@@ -4,6 +4,7 @@ import com.drcnet.highway.constants.TipsConsts;
 import com.drcnet.highway.dto.PeriodAmountDto;
 import com.drcnet.highway.dto.RiskAmountDto;
 import com.drcnet.highway.dto.RiskPeriodAmount;
+import com.drcnet.highway.dto.request.CheatingListTimeSearchDto;
 import com.drcnet.highway.dto.request.TravelRecordQueryDto;
 import com.drcnet.highway.dto.request.CheatingListDto;
 import com.drcnet.highway.dto.response.*;
@@ -13,6 +14,7 @@ import com.drcnet.highway.exception.MyException;
 import com.drcnet.highway.service.TietouExtractionService;
 import com.drcnet.highway.service.TietouScoreGyhService;
 import com.drcnet.highway.service.TietouService;
+import com.drcnet.highway.service.TietouStationDicService;
 import com.drcnet.highway.service.dataclean.TietouCleanService;
 import com.drcnet.highway.service.dic.TietouCarDicService;
 import com.drcnet.highway.util.DownloadUtil;
@@ -57,6 +59,8 @@ public class MainPageController {
     private TietouExtractionService tietouExtractionService;
     @Resource
     private TietouCleanService tietouCleanService;
+    @Resource
+    private TietouStationDicService tietouStationDicService;
 
 
     @GetMapping("queryCarNo")
@@ -73,6 +77,16 @@ public class MainPageController {
             return Result.error("数据量太大");
         }
         PageVo<TietouFeatureStatisticGyh> pageVo = tietouScoreGyhService.listCheatingCar(dto);
+        return Result.ok(pageVo);
+    }
+
+    @GetMapping("listCheatingCarByTime")
+    @ApiOperation(value = "查询违规列表",notes = "carType:-1查询所有，0货车，1客车; 开始日期和结束日期筛选")
+    public Result listCheatingCarByTime(@Validated({QueryValid.class, PageValid.class}) CheatingListTimeSearchDto dto){
+        if (dto.getPageSize() > 300) {
+            return Result.error("数据量太大");
+        }
+        PageVo<TietouFeatureStatisticGyh> pageVo = tietouScoreGyhService.listCheatingCarByTime(dto);
         return Result.ok(pageVo);
     }
 
@@ -112,8 +126,9 @@ public class MainPageController {
     @ApiOperation("查询通行记录")
     @PostMapping("queryTravelRecords")
     public Result queryTravelRecords(@RequestBody TravelRecordQueryDto travelRecordQueryDto){
-        if (StringUtils.isEmpty(travelRecordQueryDto.getInCarNo()) && StringUtils.isEmpty(travelRecordQueryDto.getOutCarNo())) {
-            throw new MyException("入口车牌和出口车牌不能都为空！");
+        if (StringUtils.isEmpty(travelRecordQueryDto.getInCarNo()) && StringUtils.isEmpty(travelRecordQueryDto.getOutCarNo())
+                && StringUtils.isEmpty(travelRecordQueryDto.getCard())) {
+            throw new MyException("入口车牌、出口车牌、卡号不能都为空！");
         }
 
         if (!StringUtils.isEmpty(travelRecordQueryDto.getInDate())) {
@@ -229,6 +244,18 @@ public class MainPageController {
     public Result statistic2ndStationRiskCount(){
         List<StationRiskCountDto> riskCountDtoList = tietouService.statistic2ndStationRiskCount();
         return Result.ok(riskCountDtoList);
+    }
+
+    /**
+     * 统计二绕每个站点出的车辆总数、高中低风险数
+     * 新版首页展示需要
+     * @return
+     */
+    @ApiOperation("二绕站点")
+    @GetMapping("get2ndRoundStation")
+    public Result get2ndRoundStation(){
+        List<StationDicDto> stationDicDtoList = tietouStationDicService.get2ndRoundStation();
+        return Result.ok(stationDicDtoList);
     }
 
 }

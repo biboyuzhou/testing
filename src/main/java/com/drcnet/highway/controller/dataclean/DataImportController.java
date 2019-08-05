@@ -28,9 +28,20 @@ public class DataImportController {
     @ApiOperation("导入二绕7月份的数据")
     @GetMapping("importByExcel")
     public Result importByExcel(){
+        long timeMillis = System.currentTimeMillis();
+        log.info("开始导入数据");
         dataImportService.import2ndRoundData();
+        log.info("数据导入成功，耗时:{} 秒",(System.currentTimeMillis() - timeMillis)/1000);
+        return Result.ok();
+    }
 
-
+    @ApiOperation("导入二绕入口数据")
+    @GetMapping("importInboundDataByExcel")
+    public Result importInboundDataByExcel(){
+        long timeMillis = System.currentTimeMillis();
+        log.info("开始导入入口数据");
+        dataImportService.importInboundDataByExcel();
+        log.info("数据导入成功，耗时:{} 秒",(System.currentTimeMillis() - timeMillis)/1000);
         return Result.ok();
     }
 

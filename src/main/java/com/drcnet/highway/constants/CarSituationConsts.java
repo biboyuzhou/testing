@@ -1,7 +1,5 @@
 package com.drcnet.highway.constants;
 
-import com.drcnet.highway.dto.RiskMap;
-
 import java.util.HashMap;
 import java.util.Map;
 
@@ -33,15 +31,15 @@ public class CarSituationConsts {
         SITUATION_MAP.put("省内免费鲜活车", 53);
 
         CAR_TYPE_MAP = new HashMap<>();
-        SITUATION_MAP.put("客一", 1);
-        SITUATION_MAP.put("客二", 2);
-        SITUATION_MAP.put("客三", 3);
-        SITUATION_MAP.put("客四", 4);
-        SITUATION_MAP.put("客五", 5);
-        SITUATION_MAP.put("货一", 11);
-        SITUATION_MAP.put("货二", 12);
-        SITUATION_MAP.put("货三", 13);
-        SITUATION_MAP.put("货四", 14);
-        SITUATION_MAP.put("货五", 15);
+        CAR_TYPE_MAP.put("客一", 1);
+        CAR_TYPE_MAP.put("客二", 2);
+        CAR_TYPE_MAP.put("客三", 3);
+        CAR_TYPE_MAP.put("客四", 4);
+        CAR_TYPE_MAP.put("客五", 5);
+        CAR_TYPE_MAP.put("货一", 11);
+        CAR_TYPE_MAP.put("货二", 12);
+        CAR_TYPE_MAP.put("货三", 13);
+        CAR_TYPE_MAP.put("货四", 14);
+        CAR_TYPE_MAP.put("货五", 15);
     }
 }

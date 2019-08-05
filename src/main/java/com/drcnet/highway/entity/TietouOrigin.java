@@ -72,11 +72,13 @@ public class TietouOrigin implements Serializable {
 
     private String inv;
 
+    @Transient
     private Long time;
 
     @Column(name = "weight_limitation")
     private Integer weightLimitation;
 
+    @Transient
     private Boolean mark;
 
     @Column(name = "month_time")
@@ -85,6 +87,7 @@ public class TietouOrigin implements Serializable {
     @Transient
     private String sameRouteMark;
 
+    @Transient
     private Integer speed;
 
     @Transient

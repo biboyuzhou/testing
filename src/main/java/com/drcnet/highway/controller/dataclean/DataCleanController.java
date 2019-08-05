@@ -46,6 +46,18 @@ public class DataCleanController {
         return Result.ok();
     }
 
+    /**
+     * 删除并重构首页缓存
+     * @return
+     */
+    @ApiOperation("删除并重构首页缓存")
+    @GetMapping("deleteAndRebuildFirstPageCache")
+    public Result deleteAndRebuildFirstPageCache(){
+        dataCleanService.deleteFirstPageCache();
+        dataCleanService.rebuildCache();
+        return Result.ok();
+    }
+
 
 
 }

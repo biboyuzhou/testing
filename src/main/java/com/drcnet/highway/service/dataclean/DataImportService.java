@@ -1,9 +1,10 @@
 package com.drcnet.highway.service.dataclean;
 
 import com.drcnet.highway.constants.CarSituationConsts;
+import com.drcnet.highway.dao.TietouInboundMapper;
 import com.drcnet.highway.dao.TietouMapper;
+import com.drcnet.highway.entity.TietouInbound;
 import com.drcnet.highway.entity.TietouOrigin;
-import com.drcnet.highway.entity.dic.StationDic;
 import com.drcnet.highway.exception.MyException;
 import com.drcnet.highway.service.TietouStationDicService;
 import com.drcnet.highway.service.dic.TietouCarDicService;
@@ -12,8 +13,10 @@ import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import javax.annotation.Resource;
 import java.io.File;
@@ -41,11 +44,13 @@ public class DataImportService {
     private TietouCarDicService tietouCarDicService;
     @Resource
     private TietouMapper tietouMapper;
+    @Resource
+    private TietouInboundMapper tietouInboundMapper;
 
 
     @Transactional
     public void import2ndRoundData() {
-        File rootDir = new File("D:\\doc\\高速公路车辆分析\\北段各站出口通行数据201.7.1-7.18");
+        File rootDir = new File("C:\\SRIT\\项目\\高速\\数据\\收费站通行记录");
         File[] parentDirs = rootDir.listFiles();
         DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern(DATE_TIME_PATTERN);
         DateTimeFormatter monthFormat = DateTimeFormatter.ofPattern("yyyyMM");
@@ -101,10 +106,10 @@ public class DataImportService {
                         //设置进出站ID
                         String ck = tietouOrigin.getCk();
                         String rk = tietouOrigin.getRk();
-                        StationDic ckDic = tietouStationDicService.getOrInertByName(ck);
-                        StationDic rkDic = tietouStationDicService.getOrInertByName(rk);
-                        tietouOrigin.setCkId(ckDic.getId());
-                        tietouOrigin.setRkId(rkDic.getId());
+                        Integer ckId = tietouStationDicService.getOrInertByName(ck);
+                        Integer rkId = tietouStationDicService.getOrInertByName(rk);
+                        tietouOrigin.setCkId(ckId);
+                        tietouOrigin.setRkId(rkId);
                         //设置进出车牌ID
                         String envlp = tietouOrigin.getEnvlp();
                         String vlp = tietouOrigin.getVlp();
@@ -136,4 +141,96 @@ public class DataImportService {
         return CarSituationConsts.SITUATION_MAP.getOrDefault(situation,0);
     }
 
+    /**
+     * 导入入口数据
+     */
+    public void importInboundDataByExcel() {
+        File file = new File("C:\\SRIT\\项目\\高速\\数据\\二绕\\二绕公司20辆入口记录");
+        if(file.isDirectory()) {
+            processDirectoty(file);
+        } else if (file.isFile()) {
+            processFile(file);
+        }
+    }
+
+    private void processFile(File file) {
+        if (file.isHidden()) {
+            return;
+        }
+        String fileName = file.getName();
+        if (!fileName.endsWith("xls") && !fileName.endsWith("xlsx")) {
+            return;
+        }
+        DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        DateTimeFormatter monthFormat = DateTimeFormatter.ofPattern("yyyyMM");
+        int count = 0;
+        try(InputStream is = new FileInputStream(file)){
+            Workbook workbook = null;
+            if (fileName.endsWith("xls")) {
+                workbook = new HSSFWorkbook(is);
+            } else if (fileName.endsWith("xlsx")){
+                workbook = new XSSFWorkbook(is);
+            }
+            if (workbook == null) {
+                return;
+            }
+            Sheet sheet = workbook.getSheetAt(0);
+            int lastRowNum = sheet.getLastRowNum();
+            for (int i = 3; i < lastRowNum; i++) {
+                Row row = sheet.getRow(i);
+                if (row.getCell(1) == null || StringUtils.isEmpty(row.getCell(1).getStringCellValue())) {
+                    continue;
+                }
+
+                TietouInbound inbound = new TietouInbound();
+                //设置进出站，进出车牌
+                inbound.setRk(row.getCell(0).getStringCellValue());
+                inbound.setEnvlp(row.getCell(1).getStringCellValue());
+                //设置进出站时间
+                String entimeDate = row.getCell(2).getStringCellValue();
+                String entime = row.getCell(3).getStringCellValue();
+                StringBuilder stringBuilder = new StringBuilder(entimeDate);
+                stringBuilder.append(" ").append(entime);
+                inbound.setEntime(LocalDateTime.parse(stringBuilder.toString(), dateTimeFormatter));
+
+                String monthTime = inbound.getEntime().format(monthFormat);
+                inbound.setMonthTime(Integer.parseInt(monthTime));
+                //设置进站车型
+                inbound.setEnvc(getCarTypeCode(row.getCell(4).getStringCellValue()));
+                //设置进出站车情
+                inbound.setEnvt(getCarSituationCode(row.getCell(5).getStringCellValue()));
+                //车道
+                inbound.setInlane(String.valueOf(row.getCell(6).getStringCellValue()));
+                //卡号
+                inbound.setCard(row.getCell(7).getStringCellValue());
+                //流水号
+                inbound.setInv(row.getCell(8).getStringCellValue());
+                //设置进出站ID
+                Integer rkId = tietouStationDicService.getOrInertByName(inbound.getRk());
+                inbound.setRkId(rkId);
+                //设置进出车牌ID
+                Integer envlpId = tietouCarDicService.getOrInsertByName(inbound.getEnvlp());
+                inbound.setEnvlpId(envlpId);
+                inbound.setCreatime(LocalDateTime.now());
+                tietouInboundMapper.insertSelective(inbound);
+                count++;
+            }
+        } catch (IOException e) {
+            log.error("{}",e);
+            throw new MyException();
+        }
+        log.info("文件：{} 已导入完成，共导入 {} 条数据", fileName, count);
+    }
+
+    private void processDirectoty(File directory) {
+        File[] listFiles = directory.listFiles();
+        for (File file : listFiles) {
+            //是文件夹
+            if (file.isDirectory()) {
+                processDirectoty(file);
+            } else if(file.isFile()) {
+                processFile(file);
+            }
+        }
+    }
 }

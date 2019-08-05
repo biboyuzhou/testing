@@ -1,5 +1,6 @@
 package com.drcnet.highway.service.dataclean;
 
+import com.drcnet.highway.constants.CacheKeyConsts;
 import com.drcnet.highway.dao.TietouMapper;
 import com.drcnet.highway.dao.TietouFeatureExtractionMapper;
 import com.drcnet.highway.dao.TietouFeatureStatisticGyhMapper;
@@ -13,6 +14,7 @@ import com.drcnet.highway.vo.PageVo;
 import com.github.pagehelper.PageHelper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.aop.framework.AopContext;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.redis.core.BoundHashOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Async;
@@ -48,6 +50,9 @@ public class DataCleanService {
     private TietouSameStationFrequentlyService tietouSameStationFrequentlyService;
     @Resource
     private RedisTemplate<String, Object> redisTemplate;
+
+    @Resource
+    private TietouCleanService tietouCleanService;
 
     public void featureClean() {
         DataCleanService thisService = (DataCleanService) AopContext.currentProxy();
@@ -256,4 +261,21 @@ public class DataCleanService {
     }
 
 
+    /**
+     * 删除首页缓存数据
+     */
+    @CacheEvict(value="riskProportion",allEntries=true)
+    public void deleteFirstPageCache() {
+        redisTemplate.delete(CacheKeyConsts.FIRST_PAGE_MAP_CACHE_KEY);
+        redisTemplate.delete(CacheKeyConsts.FIRST_PAGE_RELATION_CACHE_KEY);
+    }
+
+    /**
+     * 重构首页缓存
+     */
+    public void rebuildCache() {
+        tietouCleanService.statistic2ndCount();
+
+        tietouService.statistic2ndStationRiskCount();
+    }
 }

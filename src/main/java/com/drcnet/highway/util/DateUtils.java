@@ -2,6 +2,8 @@ package com.drcnet.highway.util;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -43,5 +45,26 @@ public abstract class DateUtils {
         Date d = sdf.parse(source);
         SimpleDateFormat target = new SimpleDateFormat("yyyy-MM-dd");
         return target.format(d);
+    }
+
+    /**
+     * 获取当前月的第一天
+     * @return
+     */
+    public static String getFirstDayOfCurrentMonth() {
+        LocalDateTime localDateTime = LocalDateTime.now();
+        StringBuilder sb = new StringBuilder(localDateTime.getYear());
+        sb.append("-").append(localDateTime.getMonthValue()).append("-").append("01");
+        return sb.toString();
+    }
+
+    /**
+     * 获取今天的日期字符串
+     * @return
+     */
+    public static String getCurrentDay() {
+        LocalDateTime localDateTime = LocalDateTime.now();
+        DateTimeFormatter df = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        return df.format(localDateTime);
     }
 }

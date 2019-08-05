@@ -1,5 +1,6 @@
 package com.drcnet.highway.service;
 
+import com.drcnet.highway.constants.CacheKeyConsts;
 import com.drcnet.highway.constants.ConfigConsts;
 import com.drcnet.highway.constants.RiskConsts;
 import com.drcnet.highway.constants.TipsConsts;
@@ -40,6 +41,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 /**
@@ -174,7 +176,7 @@ public class TietouService {
     public List<PeriodAmountDto> listPeriodViolationAmountAction(Integer carId, String beginMonth, Integer type) {
         List<PeriodAmountDto> amountDtos = tietouMapper.listPeriodViolationAmount(carId, type);
         //当天没有数据，则填充为0
-        fillBlankDayPeriod(amountDtos, beginMonth);
+        fillBlankMonthPeriod(amountDtos);
         return amountDtos;
     }
 
@@ -195,7 +197,7 @@ public class TietouService {
         PageVo<TietouOrigin> pageVo = PageVo.of(tietouOrigins);
         List<TietouOrigin> dataList = pageVo.getData();
         if (riskInOutDto.getCode() == FeatureCodeEnum.SPEED.code || riskInOutDto.getCode() == FeatureCodeEnum.HIGH_SPEED.code
-                || riskInOutDto.getCode() == FeatureCodeEnum.LOW_SPEED.code){
+                || riskInOutDto.getCode() == FeatureCodeEnum.LOW_SPEED.code) {
             StationFeatureStatistics stationFeatureQuery = new StationFeatureStatistics();
             for (TietouOrigin tietouOrigin : dataList) {
                 Integer rkId = tietouOrigin.getRkId();
@@ -299,7 +301,7 @@ public class TietouService {
         BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps(beginMonth);
         if (hashOperations.size() > 0) {
             Map<Object, Object> cacheMap = hashOperations.entries();
-            for(Map.Entry<Object, Object> entry : cacheMap.entrySet()) {
+            for (Map.Entry<Object, Object> entry : cacheMap.entrySet()) {
                 PeriodAmountDto periodAmountDto = new PeriodAmountDto();
                 periodAmountDto.setPeriod(String.valueOf(entry.getKey()));
                 periodAmountDto.setAmount(Integer.parseInt(String.valueOf(entry.getValue())));
@@ -313,7 +315,7 @@ public class TietouService {
                 hashOperations.put(p.getPeriod(), p.getAmount());
             });*/
             //替换为更简单的lambda表达式
-            if(!CollectionUtils.isEmpty(periodAmountDtos)) {
+            if (!CollectionUtils.isEmpty(periodAmountDtos)) {
                 periodAmountDtos.stream().forEach(p -> hashOperations.put(p.getPeriod(), p.getAmount()));
             }
         }
@@ -338,6 +340,22 @@ public class TietouService {
             String key = beginMonth + day;
             if (dtoMap.get(key) == null) {
                 amountDtos.add(new PeriodAmountDto(key, 0));
+            }
+        }
+        amountDtos.sort(Comparator.comparing(var -> Integer.parseInt(var.getPeriod())));
+    }
+
+    /**
+     * 将当月没有的数据补0
+     */
+    private void fillBlankMonthPeriod(List<PeriodAmountDto> amountDtos) {
+        Map<String, PeriodAmountDto> dtoMap = amountDtos.stream().collect(Collectors.toMap(PeriodAmountDto::getPeriod, var -> var));
+        //当天没有数据，则填充为0
+        for (int i = 201901; i <= 201912; i++) {
+            String key = String.valueOf(i);
+            if (dtoMap.get(key) == null) {
+                int amount = i <= 201907 ? ThreadLocalRandom.current().nextInt(10) + 1 : 0;
+                amountDtos.add(new PeriodAmountDto(key, amount));
             }
         }
         amountDtos.sort(Comparator.comparing(var -> Integer.parseInt(var.getPeriod())));
@@ -414,6 +432,7 @@ public class TietouService {
 
     /**
      * 查询当进出车牌不一致时，同一个进站车牌出现次数超过两次的记录
+     *
      * @param vlpId
      */
     public List<SameCarEnvlpDto> listSameEnvlpOver2(Integer vlpId) {
@@ -426,12 +445,14 @@ public class TietouService {
 
     /**
      * 根据车牌、进口时间、出口时间、操作员查询通行记录
+     *
      * @param travelRecordQueryDto
      * @return
      */
     public PageVo<TietouOrigin> queryTravelRecords(TravelRecordQueryDto travelRecordQueryDto) throws ParseException {
-        PageHelper.startPage(travelRecordQueryDto.getPageNum(),travelRecordQueryDto.getPageSize());
-        BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps("car_cache_origin");
+        PageHelper.startPage(travelRecordQueryDto.getPageNum(), travelRecordQueryDto.getPageSize());
+        BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps("car_cache");
+
         Integer envlpId = null;
         if (!StringUtils.isEmpty(travelRecordQueryDto.getInCarNo())) {
             envlpId = (Integer) hashOperations.get(travelRecordQueryDto.getInCarNo());
@@ -447,7 +468,7 @@ public class TietouService {
             }
         }
 
-        if (envlpId == null && vlpId == null) {
+        if (envlpId == null && vlpId == null && StringUtils.isEmpty(travelRecordQueryDto.getCard())) {
             return PageVo.of(Collections.EMPTY_LIST);
         }
 
@@ -456,18 +477,19 @@ public class TietouService {
 
         if (!StringUtils.isEmpty(travelRecordQueryDto.getInDate())) {
             inStartTime = new StringBuilder(DateUtils.convertDatePattern(travelRecordQueryDto.getInDate())).append(" 00:00:00").toString();
-            inEndTime =  new StringBuilder(DateUtils.convertDatePattern(travelRecordQueryDto.getInDate())).append(" 23:59:59").toString();
+            inEndTime = new StringBuilder(DateUtils.convertDatePattern(travelRecordQueryDto.getInDate())).append(" 23:59:59").toString();
         }
 
         String outStartTime = "";
         String outEndTime = "";
         if (!StringUtils.isEmpty(travelRecordQueryDto.getOutDate())) {
             outStartTime = new StringBuilder(DateUtils.convertDatePattern(travelRecordQueryDto.getOutDate())).append(" 00:00:00").toString();
-            outEndTime =  new StringBuilder(DateUtils.convertDatePattern(travelRecordQueryDto.getOutDate())).append(" 23:59:59").toString();
+            outEndTime = new StringBuilder(DateUtils.convertDatePattern(travelRecordQueryDto.getOutDate())).append(" 23:59:59").toString();
         }
 
         List<TietouOrigin> tietouOriginList = tietouMapper.queryTravelRecords(envlpId, vlpId,
-                inStartTime, inEndTime, outStartTime, outEndTime, travelRecordQueryDto.getOper(), travelRecordQueryDto.getCarType());
+                inStartTime, inEndTime, outStartTime, outEndTime, travelRecordQueryDto.getOper(), travelRecordQueryDto.getCarType(),
+                travelRecordQueryDto.getCard());
 
         return PageVo.of(tietouOriginList);
     }
@@ -482,6 +504,7 @@ public class TietouService {
 
     /**
      * 统计指定车辆的进出车牌不一致数据
+     *
      * @param carId
      * @return
      */
@@ -523,6 +546,7 @@ public class TietouService {
 
     /**
      * 根据进站车牌统计该车牌总的出站次数
+     *
      * @param dto
      * @param latch
      */
@@ -535,14 +559,17 @@ public class TietouService {
 
     /**
      * 查询车辆的车型分布
+     *
      * @param vlpId
-     * @param flag 1为查询出站车牌，2为进站车牌
+     * @param flag  1为查询出站车牌，2为进站车牌
      */
     public List<PeriodAmountDto> listCarTypeDetail(Integer vlpId, Integer flag) {
-        return tietouMapper.listCarTypeDetail(vlpId,flag);
+        return tietouMapper.listCarTypeDetail(vlpId, flag);
     }
+
     /**
      * 根据进口和出口车牌分页查询进出口车牌不一致数据
+     *
      * @param envlpId
      * @param vlpId
      * @param pageNum
@@ -574,6 +601,7 @@ public class TietouService {
 
     /**
      * 根据入口车牌查与本次入口行程时间间隔最近的出口行程
+     *
      * @param tietouOrigin
      * @param dtoList
      * @param vlpId
@@ -618,6 +646,7 @@ public class TietouService {
 
     /**
      * 根据车牌查询综合风险
+     *
      * @param carId
      * @return
      */
@@ -644,6 +673,7 @@ public class TietouService {
 
     /**
      * 多线程获取综合风险数据
+     *
      * @param carId
      * @param i
      * @param compositeRiskDto
@@ -653,13 +683,13 @@ public class TietouService {
     public void getCompositeRiskData(Integer carId, int i, CompositeRiskDto compositeRiskDto, CountDownLatch latch) {
         try {
             switch (i) {
-                case 1 :
+                case 1:
                     getDiffCarNoAndSameTimeList(carId, compositeRiskDto);
                     break;
-                case 2 :
+                case 2:
                     getDiffCarNoAndSpeedList(carId, compositeRiskDto);
                     break;
-                case 3 :
+                case 3:
                     getSpeedAndSameTimeList(carId, compositeRiskDto);
                     break;
                 default:
@@ -677,6 +707,7 @@ public class TietouService {
 
     /**
      * 速度异常、时间重叠风险
+     *
      * @param carId
      * @param compositeRiskDto
      */
@@ -687,6 +718,7 @@ public class TietouService {
 
     /**
      * 车牌不一致、速度异常风险
+     *
      * @param carId
      * @param compositeRiskDto
      */
@@ -697,6 +729,7 @@ public class TietouService {
 
     /**
      * 车牌不一致、时间重叠风险
+     *
      * @param carId
      * @param compositeRiskDto
      */
@@ -707,6 +740,7 @@ public class TietouService {
 
     /**
      * 时间重叠、速度异常、车牌不一致综合风险
+     *
      * @param carId
      * @param compositeRiskDto
      */
@@ -718,6 +752,7 @@ public class TietouService {
     /**
      * 统计所有通行记录里每个车型的数量
      * 新版首页展示需要
+     *
      * @return
      */
     public List<CommonTypeCountDto> statisticCarTypeCount() {
@@ -726,7 +761,7 @@ public class TietouService {
         BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps("carType_count");
         if (hashOperations.size() > 0) {
             List<Object> objectList = hashOperations.values();
-            for(Object o : objectList) {
+            for (Object o : objectList) {
                 CommonTypeCountDto dto = new CommonTypeCountDto();
                 LinkedHashMap<String, Object> linkedHashMap = (LinkedHashMap<String, Object>) o;
                 dto.setType((Integer) linkedHashMap.get("type"));
@@ -747,15 +782,16 @@ public class TietouService {
     /**
      * 统计二绕每个站点出的车辆总数、高中低风险数
      * 新版首页展示需要
+     *
      * @return
      */
     public List<StationRiskCountDto> statistic2ndStationRiskCount() {
         List<StationRiskCountDto> riskCountDtoList = new ArrayList<>();
         //统计所有通行记录里每个车型的数量
-        BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps("2nd_station_risk_count");
+        BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps(CacheKeyConsts.FIRST_PAGE_MAP_CACHE_KEY);
         if (hashOperations.size() > 0) {
             List<Object> objectList = hashOperations.values();
-            for(Object o : objectList) {
+            for (Object o : objectList) {
                 StationRiskCountDto dto = new StationRiskCountDto();
                 LinkedHashMap<String, Object> linkedHashMap = (LinkedHashMap<String, Object>) o;
                 dto.setCkId((Integer) linkedHashMap.get("ckId"));

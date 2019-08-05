@@ -71,8 +71,9 @@ public class TietouCarDicService implements BaseService<TietouCarDic, Integer> {
         query.setCarNo(carNo);
         TietouCarDic tietouCarDic = thisMapper.selectOne(query);
         if (tietouCarDic == null) {
-            if (flag == 0)
+            if (flag == 0) {
                 throw new MyException("该车牌没有被加入白名单!");
+            }
             query.setCreateTime(LocalDateTime.now());
             query.setUseFlag(true);
             query.setWhiteFlag(true);
@@ -228,35 +229,30 @@ public class TietouCarDicService implements BaseService<TietouCarDic, Integer> {
      */
     public Integer getOrInsertByName(String carNo) {
         BoundHashOperations<String, String, Integer> cacheOperation = redisTemplate.boundHashOps("car_cache");
-        BoundHashOperations<String, String, Integer> cacheOriginOperation = redisTemplate.boundHashOps("car_cache_origin");
         carNo = carNo.trim();
         Integer id = cacheOperation.get(carNo);
         if (id == null) {
-            id = cacheOriginOperation.get(carNo);
-            if (id == null) {
-                //查询原始表
-                TietouCarDic res = thisMapper.selectByCarNoFromAll(carNo);
-                if (res != null){
-                    return res.getId();
-                }
+            //查询原始表
+            TietouCarDic res = thisMapper.selectByCarNoFromAll(carNo);
+            if (res != null){
+                return res.getId();
+            }
 
-                TietouCarDic carDic = new TietouCarDic();
-                carDic.setUseFlag(true);
-                carDic.setCreateTime(LocalDateTime.now());
-                carDic.setCarNo(carNo);
-                carDic.setWhiteFlag(false);
-                if (carNo.endsWith("警") || carNo.length() < 7 || carNo.length() > 8) {
-                    carDic.setUseFlag(false);
-                }
-                thisMapper.insertSelective(carDic);
-                id = carDic.getId();
-                log.info("新增一个车牌:{}", carNo);
-                cacheOperation.put(carNo,id);
-                cacheOriginOperation.put(carNo,id);
-                if (!carDic.getUseFlag()){
-                    BoundHashOperations<String, String, String> cacheUselessOperation = redisTemplate.boundHashOps("car_cache_useless");
-                    cacheUselessOperation.put(String.valueOf(id),carNo);
-                }
+            TietouCarDic carDic = new TietouCarDic();
+            carDic.setUseFlag(true);
+            carDic.setCreateTime(LocalDateTime.now());
+            carDic.setCarNo(carNo);
+            carDic.setWhiteFlag(false);
+            if (carNo.endsWith("警") || carNo.length() < 7 || carNo.length() > 8) {
+                carDic.setUseFlag(false);
+            }
+            thisMapper.insertSelective(carDic);
+            id = carDic.getId();
+            log.info("新增一个车牌:{}", carNo);
+            cacheOperation.put(carNo,id);
+            if (!carDic.getUseFlag()){
+                BoundHashOperations<String, String, String> cacheUselessOperation = redisTemplate.boundHashOps("car_cache_useless");
+                cacheUselessOperation.put(String.valueOf(id),carNo);
             }
         }
         return id;

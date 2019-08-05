@@ -10,9 +10,9 @@ import java.util.Set;
 public interface TietouCarDicMapper extends MyMapper<TietouCarDic> {
     List<TietouCarDic> queryCarNo(@Param("carNo") String carNo, @Param("carType") Integer carType);
 
-    Integer getMaxId(@Param("originFlag") Integer originFlag);
+    Integer getMaxId();
 
-    List<TietouCarDic> selectByPeriod(@Param("begin") int begin, @Param("end") int end,@Param("originFlag") Integer originFlag);
+    List<TietouCarDic> selectByPeriod(@Param("begin") int begin, @Param("end") int end);
 
     /**
      * 批量插入TietouCarDic

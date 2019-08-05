@@ -2,6 +2,7 @@ package com.drcnet.highway.service.dataclean;
 
 import com.drcnet.highway.common.BeanConvertUtil;
 import com.drcnet.highway.config.ConfigConsts;
+import com.drcnet.highway.constants.CacheKeyConsts;
 import com.drcnet.highway.dao.*;
 import com.drcnet.highway.domain.StatisticCount;
 import com.drcnet.highway.dto.response.CommonTypeCountDto;
@@ -135,20 +136,17 @@ public class TietouCleanService {
     }
 
     /**
-     * 将车牌信息以 车牌号-车牌id的方式存入redis中
-     * @param originFlag
+     * 将车牌信息以 车牌号-车牌id的方式存入redis
+     *
      */
-    public void initCarDic2Cache(Integer originFlag) {
+    public void initCarDic2Cache() {
         String cacheName = "car_cache";
-        if (originFlag != null && originFlag != 1) {
-            cacheName = "car_cache_origin";
-        }
-        Integer maxId = carDicMapper.getMaxId(originFlag);
+        Integer maxId = carDicMapper.getMaxId();
         int distance = 50000;
         redisTemplate.delete(cacheName);
         BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps(cacheName);
         for (int i = 1; i <= maxId; i += distance) {
-            List<TietouCarDic> carDics = carDicMapper.selectByPeriod(i, i + distance, originFlag);
+            List<TietouCarDic> carDics = carDicMapper.selectByPeriod(i, i + distance);
             Map<String, Integer> collect = carDics.stream().collect(Collectors.toMap(TietouCarDic::getCarNo, TietouCarDic::getId));
             hashOperations.putAll(collect);
             int latchSize = i + distance - 1 < maxId ? i + distance - 1 : maxId;
@@ -160,27 +158,32 @@ public class TietouCleanService {
     /**
      * 将use_flag=0的车牌以车牌ID-车牌号的方式存入redis中
      */
-    public void initUseFlagFalseCarDic2Cache() {
+    public void initUseFlagFalseCarDic2Cache(Integer start) {
         redisTemplate.delete("car_cache_useless");
         BoundHashOperations<String, String, String> hashOperations = redisTemplate.boundHashOps("car_cache_useless");
-        TietouCarDic query = new TietouCarDic();
-        query.setUseFlag(false);
-        List<TietouCarDic> res = carDicMapper.select(query);
-        Map<String, String> uselessCar = res.stream().collect(Collectors.toMap(var -> var.getId().toString(), TietouCarDic::getCarNo));
-        hashOperations.putAll(uselessCar);
-        log.info("useFlag数据导入redis成功！");
+        Integer maxId = carDicMapper.getMaxId();
+        int distance = 50000;
+        for (int i = start; i <= maxId; i += distance) {
+            int end = (i + distance - 1) >= maxId ? maxId : (i + distance - 1);
+            List<TietouCarDic> res = carDicMapper.selectByPeriod(i, end);
+            Map<String, String> uselessCar = res.stream().collect(Collectors.toMap(var -> var.getId().toString(), TietouCarDic::getCarNo));
+            hashOperations.putAll(uselessCar);
+            uselessCar.clear();
+            log.info("useFlag数据已导入redis{}条！", end);
+        }
     }
 
     /**
      * 将出现次数最多的轴数和车型设置为车牌的轴数
      */
-    public void statisticsAlexNumAndCarType() {
-        Integer maxId = carDicMapper.getMaxId(null);
+    public void statisticsAlexNumAndCarType(Integer start) {
+        Integer maxId = carDicMapper.getMaxId();
         int distance = 10000;
         TietouCleanService currentProxy = (TietouCleanService) AopContext.currentProxy();
-        int latchCount = maxId % distance == 0 ? maxId / distance : maxId / distance + 1;
+        int total = maxId - start;
+        int latchCount = total % distance == 0 ? total / distance : total / distance + 1;
         CountDownLatch latch = new CountDownLatch(latchCount);
-        for (int i = 0; i <= maxId; i += distance) {
+        for (int i = start; i <= maxId; i += distance) {
             currentProxy.statisticsAlexNum(i, distance, latch);
         }
         try {
@@ -195,10 +198,8 @@ public class TietouCleanService {
     @Transactional(rollbackFor = Exception.class)
     @Async("taskExecutor")
     public void statisticsAlexNum(int begin, int distance, CountDownLatch latch) {
-        List<TietouCarDic> tietouCarDics = carDicMapper.selectByPeriod(begin, begin + distance - 1, null);
-        CountDownLatch latch1 = new CountDownLatch(tietouCarDics.size());
+        List<TietouCarDic> tietouCarDics = carDicMapper.selectByPeriod(begin, begin + distance - 1);
         for (TietouCarDic carDic : tietouCarDics) {
-            taskExecutor.execute(() ->{
                 Integer vlpId = carDic.getId();
                 Integer carTypeDic = carDic.getCarType();
                 Integer carTypeDicIn = carDic.getCarTypeIn();
@@ -216,15 +217,6 @@ public class TietouCleanService {
                     carDic.setCarTypeIn(carTypeIn);
                     carDicMapper.updateByPrimaryKeySelective(carDic);
                 }
-                latch1.countDown();
-            });
-
-        }
-        try {
-            latch1.await();
-        } catch (InterruptedException e) {
-            log.error("{}", e);
-            Thread.currentThread().interrupt();
         }
         latch.countDown();
         log.info("{}-{} 区间数据已统计完成，剩余数量:{}", begin, begin + distance - 1, latch.getCount() * 10000);
@@ -270,6 +262,9 @@ public class TietouCleanService {
         List<TietouFeatureStatistic> statistics = tietouFeatureStatisticMapper.listByMonthTime(monthTime);
         log.info("查询出{}的数据,开始进行封装", monthTime);
 
+        if (CollectionUtils.isEmpty(statistics)) {
+            return;
+        }
         if (dataMap.isEmpty()) {
             Map<Integer, TietouFeatureStatistic> statisticMap = statistics.parallelStream().collect(Collectors.toMap(TietouFeatureStatistic::getVlpId, var -> var));
             dataMap.putAll(statisticMap);
@@ -304,11 +299,12 @@ public class TietouCleanService {
             int boundary = i + distance < dataList.size() ? i + distance : dataList.size();
             List<TietouFeatureStatistic> featureStatistics = dataList.subList(i, boundary);
             currentProxy.insertAllStatistics(featureStatistics, latch);
-            if (i % 200000 == 0) {
+            if (i % 200000 == 0 || boundary == dataList.size()) {
                 log.info("正在处理第:{}条数据", i);
             }
         }
         try {
+            log.info("statistic 数据全部入库成功！");
             latch.await();
         } catch (InterruptedException e) {
             log.error("{}", e);
@@ -424,17 +420,17 @@ public class TietouCleanService {
     /**
      * 根据通行记录原始数据，得出12项特征的flag
      */
-    public void insertExtractionData() {
+    public void insertExtractionData(Integer start) {
         BoundHashOperations<String, String, String> hashOperations = redisTemplate.boundHashOps("car_cache_useless");
         long timeMillis = System.currentTimeMillis();
         TietouCleanService currentProxy = (TietouCleanService) AopContext.currentProxy();
         Integer maxId = tietouMapper.selectMaxId();
-//        Integer maxId = 29000000;
-        int distance = 500000;
-        int dis = 10000;
-        for (int i = 0; i <= maxId; i += distance) {
-            List<TietouOrigin> tietous = tietouMapper.listAllByIdPeriod(i, i + distance - 1);
-            log.info("已查询完{}条记录", i + distance - 1);
+        int distance = 50000;
+        int dis = 5000;
+        for (int i = start; i <= maxId; i += distance) {
+            int end = (i + distance - 1) >= maxId ? maxId : (i + distance - 1);
+            List<TietouOrigin> tietous = tietouMapper.listAllByIdPeriod(i, end);
+            log.info("已查询完{}条记录", end);
             int size = tietous.size();
             int latchSize = size % dis == 0 ? size / dis : size / dis + 1;
             CountDownLatch latch = new CountDownLatch(latchSize);
@@ -453,8 +449,6 @@ public class TietouCleanService {
             }
         }
         log.info("所有记录已新增完成，耗时{}秒", (System.currentTimeMillis() - timeMillis) / 1000);
-
-
     }
 
     /**
@@ -647,8 +641,6 @@ public class TietouCleanService {
             Integer vlpId = entry.getKey();
             List<TietouOrigin> value = entry.getValue();
             dataCleanService.minOutInStatisticsAction(vlpId, value, monthTime, latch, hashOperations, idUpdateSets, dataCleanService);
-            //提前释放内存空间
-            entry.setValue(null);
             if (++i % 200000 == 0) {
                 log.info("已处理:{}辆车", i);
             }
@@ -940,6 +932,9 @@ public class TietouCleanService {
         query.setRkId(rkId);
         query.setCkId(ckId);
         StationFeatureStatistics statistics = stationFeatureStatisticsMapper.selectOne(query);
+        if (statistics == null) {
+            log.info("未查询到该路段的平均速度，ckId: {}, rkId: {}", ckId, rkId);
+        }
         BigDecimal avgSpeedByVc = statistics.getAvgSpeedByVc(vc);
         if (avgSpeedByVc == null) {
             return;
@@ -1402,11 +1397,11 @@ public class TietouCleanService {
     /**
      * 更新车牌号一致的蓝牌和黄牌的最大载重和最小载重
      */
-    public void updateMaxAndMinWeight() {
+    public void updateMaxAndMinWeight(Integer start) {
         BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps("sameCarNo");
         Set<Object> keys = hashOperations.keys();
         int i = carDicMapper.updateMaxAndMinWeight(keys, null);
-        int i1 = carDicMapper.updateMaxAndMinWeight(null, 8920355);
+        int i1 = carDicMapper.updateMaxAndMinWeight(null, start);
         log.info("修改了 {} 条数据",i+i1);
     }
 
@@ -1415,11 +1410,11 @@ public class TietouCleanService {
      * 方便排除免费的内部车辆
      * @return
      */
-    public void updateIsFreeCar() {
+    public void updateIsFreeCar(Integer start) {
         long timeMillis = System.currentTimeMillis();
         Integer maxId = tietouMapper.selectMaxId();
         try {
-            int result = tietouFeatureStatisticMapper.updateIsFreeCar(maxId);
+            int result = tietouFeatureStatisticMapper.updateIsFreeCar(maxId, start);
             log.info("所有记录已更新完成, 总共更新{}条，耗时{}秒", result, (System.currentTimeMillis() - timeMillis) / 1000);
         } catch (Exception e) {
             log.error("更新static表is_free_car出错！", e);
@@ -1446,7 +1441,7 @@ public class TietouCleanService {
      * 导入tietou原始数据到数据库
      */
     public void importTietou2DB(String fileName, Integer count) {
-        BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps("car_cache_origin");
+        BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps("car_cache");
         BoundHashOperations<String, Object, Object> stationHash = redisTemplate.boundHashOps("station_dic");
         String filePath = "C:\\test\\" + fileName + ".txt";
         List<String> list = new ArrayList<>(1000000);
@@ -1606,7 +1601,7 @@ public class TietouCleanService {
     public List<StationTripCountDto> statistic2ndCount() {
         List<StationTripCountDto> tripCountList = new ArrayList<>(500);
         //二绕站点之间互相的通行记录统计
-        BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps("2nd_station_trip_count");
+        BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps(CacheKeyConsts.FIRST_PAGE_RELATION_CACHE_KEY);
         if (hashOperations.size() > 100) {
             List<Object> objectList = hashOperations.values();
             for(Object o : objectList) {
@@ -1641,4 +1636,11 @@ public class TietouCleanService {
     }
 
 
+    /**
+     * 统计站点之间不同车型的平均速度
+     * @param start
+     */
+    public void statisticsStationAvgSpeed(Integer start) {
+
+    }
 }

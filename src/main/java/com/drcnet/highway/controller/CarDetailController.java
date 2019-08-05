@@ -89,7 +89,7 @@ public class CarDetailController {
             Thread.currentThread().interrupt();
         }
 
-        if (carInfo.getWhiteFlag()){
+        if (carInfo.getWhiteFlag() != null && carInfo.getWhiteFlag()){
             turnoverVo.setType(BlackStatusEnum.WHITE.code);
         }else {
             TietouBlacklist blacklist = tietouBlackListService.queryByCarNoId(carId);
