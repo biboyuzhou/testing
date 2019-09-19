@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.drcnet.highway.dao.Tietou2019Mapper">
+  <resultMap id="BaseResultMap" type="com.drcnet.highway.entity.Tietou2019">
+    <!--
+      WARNING - @mbg.generated
+    -->
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="month_time" jdbcType="INTEGER" property="monthTime" />
+    <result column="entime" jdbcType="TIMESTAMP" property="entime" />
+    <result column="rk" jdbcType="VARCHAR" property="rk" />
+    <result column="rk_id" jdbcType="INTEGER" property="rkId" />
+    <result column="envlp" jdbcType="VARCHAR" property="envlp" />
+    <result column="envlp_id" jdbcType="INTEGER" property="envlpId" />
+    <result column="envt" jdbcType="INTEGER" property="envt" />
+    <result column="envc" jdbcType="INTEGER" property="envc" />
+    <result column="extime" jdbcType="TIMESTAMP" property="extime" />
+    <result column="ck" jdbcType="VARCHAR" property="ck" />
+    <result column="ck_id" jdbcType="INTEGER" property="ckId" />
+    <result column="vlp" jdbcType="VARCHAR" property="vlp" />
+    <result column="vlp_id" jdbcType="INTEGER" property="vlpId" />
+    <result column="vc" jdbcType="INTEGER" property="vc" />
+    <result column="vt" jdbcType="INTEGER" property="vt" />
+    <result column="exlane" jdbcType="VARCHAR" property="exlane" />
+    <result column="oper" jdbcType="VARCHAR" property="oper" />
+    <result column="lastmoney" jdbcType="DECIMAL" property="lastmoney" />
+    <result column="freemoney" jdbcType="DECIMAL" property="freemoney" />
+    <result column="totalweight" jdbcType="INTEGER" property="totalweight" />
+    <result column="axlenum" jdbcType="INTEGER" property="axlenum" />
+    <result column="tolldistance" jdbcType="INTEGER" property="tolldistance" />
+    <result column="card" jdbcType="VARCHAR" property="card" />
+    <result column="flagstationinfo" jdbcType="VARCHAR" property="flagstationinfo" />
+    <result column="realflagstationinfo" jdbcType="VARCHAR" property="realflagstationinfo" />
+    <result column="inv" jdbcType="VARCHAR" property="inv" />
+  </resultMap>
+
+  <select id="selectMaxId" resultType="java.lang.Integer">
+    select max(id) from highway_tietou.tietou_2019
+  </select>
+
+  <select id="listAllByperoid" resultMap="BaseResultMap">
+    select * from highway_tietou.tietou_2019 where id between #{begin} and #{end}
+  </select>
+
+  <select id="getTietou2019IdByTietouId" resultType="java.lang.Integer">
+    select r.id from highway_tietou.tietou_2019 r ,(select entime,rk_id,ck_id,envlp_id,extime,vlp_id from tietou where id = #{recordId}) s
+	    where r.entime = s.entime
+	      and r.rk_id = s.rk_id
+	      and r.envlp_id = s.envlp_id
+	      and r.extime = s.extime
+	      and r.ck_id = s.ck_id
+	      and r.vlp_id = s.vlp_id
+  </select>
+
+  <select id="getIdListByCarId" resultType="java.lang.Integer">
+    select id from highway_tietou.tietou_2019 where vlp_id = #{vlpId} order by extime desc limit 10000
+  </select>
+
+  <select id="getCountByVlpId" resultType="java.lang.Integer">
+    select count(1) from highway_tietou.tietou_2019 where vlp_id = #{vlpId}
+  </select>
+
+  <select id="getDifferentCarType" resultType="com.drcnet.highway.domain.SameCarNum">
+    select t.id,t.vlp_id vlpId,t.vc,c.car_type carType from highway_tietou.tietou_2019 t, highway_tietou.car_dic c
+    where t.id BETWEEN #{startId} and #{endId} and t.vlp_id = c.id and t.vc &lt;&gt; c.car_type
+  </select>
+
+  <update id="updateVlpIdById">
+    update highway_tietou.tietou_2019 set vlp_id = #{carId} where id = #{id}
+  </update>
+
+  <update id="updateVlpIdAndVlpByVlpId">
+    update highway_tietou.tietou_2019 set vlp_id = #{newVlpId},vlp = #{carNo} where vlp_id = #{oldVlpId}
+  </update>
+
+  <select id="selectMaxCurrentTietouId" resultType="java.lang.Integer">
+    SELECT MAX(id) from (
+      select MAX(id) id from highway_tietou.tietou_2019 t where rk_id in
+        <foreach collection="stationIds" item="item" separator="," open="(" close=")">
+          #{item}
+        </foreach>
+      UNION
+      SELECT MAX(id) id from highway_tietou.tietou_2019 where ck_id in
+        <foreach collection="stationIds" item="item" separator="," open="(" close=")">
+          #{item}
+        </foreach>
+      ) r
+  </select>
+
+  <select id="listByIdPeriod" resultMap="BaseResultMap">
+    select * from highway_tietou.tietou_2019 where id between #{start} and #{end}
+  </select>
+
+  <update id="updateByPrimaryKeyAction">
+        update tietou_2019 set vlp = #{vlp},envlp = #{envlp},vlp_id = #{vlpId},envlp_id = #{envlpId},ck_id = #{ckId},rk_id = #{rkId}
+        where id = #{id}
+    </update>
+
+  <select id="listAllByIdList" resultMap="BaseResultMap">
+    select * from highway_tietou.tietou_2019 where id in
+    <foreach collection="idList" open="(" close=")" separator="," item="item">
+      #{item}
+    </foreach>
+  </select>
+
+  <select id="listByTime" resultMap="BaseResultMap">
+    select * from (
+      select * from highway_tietou.tietou_2019 where vlp_id = #{carId}
+      <if test="startTime !=null and endTime != null">
+        and entime between #{startTime} and #{endTime}
+      </if>
+      <if test="startTime !=null and endTime == null">
+        and entime >= #{startTime}
+      </if>
+      <if test="startTime ==null and endTime != null">
+        and entime &lt;= #{endTime}
+      </if>
+    union
+      select * from highway_tietou.tietou_2019 where vlp_id = #{carId}
+      <if test="startTime !=null and endTime != null">
+        and extime between #{startTime} and #{endTime}
+      </if>
+      <if test="startTime !=null and endTime == null">
+        and extime >= #{startTime}
+      </if>
+      <if test="startTime ==null and endTime != null">
+        and extime &lt;= #{endTime}
+      </if>
+    ) r
+  </select>
+</mapper>

@@ -1,7 +1,14 @@
 package com.drcnet.highway.config;
 
+import com.drcnet.highway.permission.MyRealm;
 import com.drcnet.highway.util.FilePathUtil;
+import com.drcnet.usermodule.permission.AuthcRealm;
+import com.drcnet.usermodule.permission.SecurityUtil;
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.boot.web.servlet.MultipartConfigFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -36,14 +43,18 @@ public class HighwayConfig {
 
     @Resource
     private RedisTemplate<Serializable,Object> redisTemplate;
-    @Resource
-    private ObjectMapper objectMapper;
 
     @PostConstruct
     public void serializeRedisTemplate() {
+
+        ObjectMapper om = new ObjectMapper();
+        om.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);
+        om.enableDefaultTyping(ObjectMapper.DefaultTyping.NON_FINAL);
+        om.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        om.registerModule(new JavaTimeModule());
         //设置序列化
         Jackson2JsonRedisSerializer jackson2JsonRedisSerializer = new Jackson2JsonRedisSerializer<>(Object.class);
-        jackson2JsonRedisSerializer.setObjectMapper(objectMapper);
+        jackson2JsonRedisSerializer.setObjectMapper(om);
 
         RedisSerializer stringSerializer = new StringRedisSerializer();
         redisTemplate.setKeySerializer(stringSerializer);//key序列化
@@ -59,11 +70,11 @@ public class HighwayConfig {
     public TaskExecutor taskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         // 设置核心线程数
-        executor.setCorePoolSize(20);
+        executor.setCorePoolSize(16);
         // 设置最大线程数
-        executor.setMaxPoolSize(40);
+        executor.setMaxPoolSize(32);
         // 设置队列容量
-        executor.setQueueCapacity(100000);
+        executor.setQueueCapacity(50);
         // 设置线程活跃时间（秒）
         executor.setKeepAliveSeconds(60);
         // 设置默认线程名称
@@ -121,4 +132,14 @@ public class HighwayConfig {
         return factory.createMultipartConfig();
     }
 
+    /**
+     * 将密码验证规则设置进权限验证中
+     * @return
+     */
+    @Bean
+    public AuthcRealm pwdRealm(){
+        MyRealm myRealm = new MyRealm();
+        SecurityUtil.getHandler().setAuthcRealm(myRealm);
+        return myRealm;
+    }
 }

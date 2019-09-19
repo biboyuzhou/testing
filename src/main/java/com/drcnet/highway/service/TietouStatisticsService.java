@@ -1,6 +1,7 @@
 package com.drcnet.highway.service;
 
 import com.alibaba.fastjson.JSON;
+import com.drcnet.highway.config.LocalVariableConfig;
 import com.drcnet.highway.dao.StationDicMapper;
 import com.drcnet.highway.dao.TietouCarDicMapper;
 import com.drcnet.highway.dao.TietouFeatureStatisticMapper;
@@ -8,9 +9,11 @@ import com.drcnet.highway.dao.TietouMapper;
 import com.drcnet.highway.dto.RiskMap;
 import com.drcnet.highway.dto.SameCarEnvlpDto;
 import com.drcnet.highway.dto.SameCarEnvlpIncludeDto;
+import com.drcnet.highway.dto.request.RiskByRankRequest;
 import com.drcnet.highway.entity.TietouFeatureStatistic;
 import com.drcnet.highway.entity.dic.StationDic;
 import com.drcnet.highway.entity.dic.TietouCarDic;
+import com.drcnet.highway.service.dataclean.TietouCleanService;
 import com.drcnet.highway.util.templates.BaseService;
 import com.drcnet.highway.util.templates.MyMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -53,6 +56,10 @@ public class TietouStatisticsService implements BaseService<TietouFeatureStatist
     private TietouMapper tietouMapper;
     @Resource
     private StationDicMapper stationDicMapper;
+    @Resource
+    private LocalVariableConfig localVariableConfig;
+    @Resource
+    private TietouCleanService tietouCleanService;
 
     @Override
     public MyMapper<TietouFeatureStatistic> getMapper() {
@@ -78,6 +85,7 @@ public class TietouStatisticsService implements BaseService<TietouFeatureStatist
             int boundary = next < size ? next : size;
             List<Integer> departList = ids.subList(i, boundary);
             currentProxy.listSameEnvlpMoreThan2Action(departList, latch, hashOperations, uselessOperations, finishIds);
+
         }
         try {
             latch.await();
@@ -160,7 +168,7 @@ public class TietouStatisticsService implements BaseService<TietouFeatureStatist
      * @param values
      */
     private void transfer2ndRound2Excel(Set<Object> values) {
-        List<StationDic> stationDics = stationDicMapper.select2ndRound();
+        List<StationDic> stationDics = stationDicMapper.select2ndRound(localVariableConfig.getEnterpriseCode());
         List<Integer> secondRoundIds = stationDics.stream().map(StationDic::getId).collect(Collectors.toList());
         List<String> secondRoundList = new ArrayList<>();
         CountDownLatch latch = new CountDownLatch(values.size());
@@ -184,7 +192,7 @@ public class TietouStatisticsService implements BaseService<TietouFeatureStatist
         Integer carNoId = Integer.parseInt((String) value);
         Integer roundCar = tietouMapper.is2ndRoundCar(carNoId, secondRoundIds);
         if (roundCar > 3) {
-            TietouCarDic tietouCarDic = tietouCarDicMapper.selectByPrimaryKey(carNoId);
+            TietouCarDic tietouCarDic = tietouCarDicMapper.selectById(carNoId);
             secondRoundList.add(tietouCarDic.getCarNo());
         }
         latch.countDown();
@@ -231,13 +239,25 @@ public class TietouStatisticsService implements BaseService<TietouFeatureStatist
                 String carNo = cell.getStringCellValue();
                 TietouCarDic tietouCarDic = tietouCarDicMapper.selectByCarNo(carNo);
                 Integer vlpId = tietouCarDic.getId();
-
-                List<RiskMap> riskMaps = tietouService.listRiskByRank(vlpId, 201812);
+                RiskByRankRequest riskByRankRequest = new RiskByRankRequest();
+                riskByRankRequest.setCarId(vlpId);
+                List<RiskMap> riskMaps = tietouService.listRiskByRank(riskByRankRequest);
             }
 
         } catch (IOException e) {
             e.printStackTrace();
         }
 
+    }
+
+    /**
+     * 重新生成tietou_feature_statistic表的数据
+     */
+    public void generateStatisticData() {
+        tietouCleanService.truncateStatisticTable();
+        tietouCleanService.insertStatisticTableData();
+        tietouCleanService.updateIsFreeCar(1);
+        log.info("------------------insert into statistic已完成！");
+        thisMapper.pullStatisticScoreFromAll();
     }
 }

@@ -5,6 +5,7 @@ import com.drcnet.highway.constants.TipsConsts;
 import com.drcnet.highway.exception.InternalServerErrorException;
 import com.drcnet.highway.exception.MyException;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 
 import java.io.ByteArrayOutputStream;
@@ -35,7 +36,7 @@ public class EntityUtil {
     private static final MyException myException = new MyException("日期格式异常");
     private static final MyException DateException = new MyException("日期格式异常");
     private static final MyException tableNotFoundException = new MyException("没有该月份的数据");
-
+    private static Pattern likeWordPattern = Pattern.compile(".*[.*%].*");
     /**
      * 将t对象的同名属性复制到M对象
      *
@@ -153,5 +154,21 @@ public class EntityUtil {
 
         return false;
     }
+    public static String formatKeyWord(String word) {
+        if (StringUtils.isBlank(word)) {
+            return null;
+        }
+        if (likeWordPattern.matcher(word).matches()) {
+            return word.replaceAll("\\%", "\\\\%");
+        }
+        return word;
+    }
 
+    public static String formatKeyWordWithPrev(String word) {
+        String keyWord = formatKeyWord(word);
+        if (keyWord == null) {
+            return null;
+        }
+        return "%" + word + "%";
+    }
 }

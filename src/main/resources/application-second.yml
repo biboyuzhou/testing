@@ -1,10 +1,5 @@
 spring:
   datasource:
-    url: jdbc:mysql://192.168.101.201/highway2ndround?useUnicode=true&characterEncoding=utf8
-#    url: jdbc:mysql://192.168.101.201/highway_yl?useUnicode=true&characterEncoding=utf8
-#    url: jdbc:mysql:///highway?useUnicode=true&characterEncoding=utf8
-    username: root
-    password: 123456
     hikari:
       minimum-idle: 5
       idle-timeout: 180000
@@ -13,10 +8,26 @@ spring:
       connection-timeout: 30000
       connection-test-query: SELECT 1
       pool-name: hikariCP
+      jdbc-url: jdbc:mysql://192.168.101.201/highway2ndround?useUnicode=true&characterEncoding=utf8&allowMultiQueries=true
+      username: root
+      password: 123456
+    url: jdbc:mysql://192.168.101.201/highway2ndround?useUnicode=true&characterEncoding=utf8&allowMultiQueries=true
   redis:
     host: 192.168.101.204
     password: 12345678
     database: 3
     timeout: 180s
-swagger:
-  enable: true
+drcnet:
+  swagger: true
+server:
+  port: 9080
+Local:
+  station-id-list: [34,89,91,129,134,148,150,197,226,400,401,468,487]
+  enterprise-code: 1
+  relation-cache-key: 2nd_station_trip_count
+  risk-map-cache-key: 2nd_station_risk_count
+  previous_tietou_id: previous_tietou_id_1
+  previous_car_id: previous_car_id
+  previous_end_month: previous_end_month_1
+  scriptPath: /disk1/project/highway/second/execute.sh
+  road_name: second

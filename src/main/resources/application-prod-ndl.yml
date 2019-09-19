@@ -1,0 +1,30 @@
+spring:
+  datasource:
+    hikari:
+      minimum-idle: 5
+      idle-timeout: 180000
+      maximum-pool-size: 50
+      max-lifetime: 1800000
+      connection-timeout: 30000
+      connection-test-query: SELECT 1
+      pool-name: hikariCP
+      jdbc-url: jdbc:mysql:///highway_ndl?useUnicode=true&characterEncoding=utf8&allowMultiQueries=true
+      username: root
+      password: DRCNET_321
+    url: jdbc:mysql:///highway_ndl?useUnicode=true&characterEncoding=utf8&allowMultiQueries=true
+  redis:
+    host: 127.0.0.1
+    password: 12345678
+    database: 3
+server:
+  port: 7020
+Local:
+  station-id-list: [264,475,478,543,267,479,544,355,476,539,625,477]
+  enterprise-code: 4
+  relation-cache-key: ndl_station_trip_count
+  risk-map-cache-key: ndl_station_risk_count
+  previous_tietou_id: previous_tietou_id_4
+  previous_car_id: previous_car_id
+  previous_end_month: previous_end_month_4
+  scriptPath: /project/highway/ndl/execute.sh
+  road_name: ndl

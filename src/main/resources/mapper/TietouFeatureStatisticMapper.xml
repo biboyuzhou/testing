@@ -29,14 +29,11 @@
   </resultMap>
   <resultMap id="TietouScoreResultMap" type="com.drcnet.highway.entity.TietouFeatureStatisticGyh">
     <id column="id" jdbcType="INTEGER" property="id"/>
-    <result column="month_time" jdbcType="INTEGER" property="monthTime"/>
     <result column="vlp_id" jdbcType="INTEGER" property="vlpId"/>
     <result column="vlp" jdbcType="VARCHAR" property="vlp"/>
     <result column="cheating" jdbcType="INTEGER" property="cheating"/>
     <result column="violation" jdbcType="INTEGER" property="violation"/>
     <result column="score" jdbcType="INTEGER" property="score"/>
-    <result column="create_time" jdbcType="TIMESTAMP" property="createTime"/>
-    <result column="update_time" jdbcType="TIMESTAMP" property="updateTime"/>
     <result column="black_flag" jdbcType="TINYINT" property="blackFlag"/>
   </resultMap>
   <update id="updateCarTypeById">
@@ -142,4 +139,117 @@
 		  label = (select label from tietou_feature_statistic_gyh g where s.vlp_id = g.vlp_id),
 		  score = (select score from tietou_feature_statistic_gyh g where s.vlp_id = g.vlp_id)
   </update>
+
+  <insert id="insertStatisticDataBySql" >
+    insert into tietou_feature_statistic(vlp,vlp_id,car_type,is_free_car,axlenum,same_car_number,speed,low_speed,high_speed,same_car_type,same_car_situation,short_dis_overweight
+          ,long_dis_lightweight,diff_flagstation_info,flagstation_lost,same_station,same_time_range_again,min_out_in,different_zhou,transit_times,total)
+    select *,same_car_number+low_speed+high_speed+same_car_type+same_car_situation+short_dis_overweight
+          +long_dis_lightweight+diff_flagstation_info+flagstation_lost+same_station+same_time_range_again+min_out_in+different_zhou total
+      from
+        (select vlp,vlp_id,(select car_type from highway_tietou.car_dic c where c.id = vlp_id) car_type
+          ,(select case when use_flag = 0 then 1 else 0 end from highway_tietou.car_dic c where c.id = vlp_id ) is_free_car
+          ,(select axlenum from highway_tietou.car_dic c where c.id = vlp_id) axlenum
+          ,COUNT( case when same_car_number = 0 then 1 ELSE NULL end) same_car_number
+          ,COUNT( case when speed =1 then 1 ELSE NULL end) speed
+          ,COUNT( case when low_speed =1 then 1 ELSE NULL end) low_speed
+          ,COUNT( case when high_speed =1 then 1 ELSE NULL end) high_speed
+          ,COUNT( case when same_car_type = 0 then 1 ELSE NULL end) same_car_type
+          ,COUNT( case when same_car_situation = 0 then 1 ELSE NULL end) same_car_situation
+          ,COUNT( case when short_dis_overweight = 1 then 1 ELSE NULL end) short_dis_overweight
+          ,COUNT( case when long_dis_lightweight = 1 then 1 ELSE NULL end) long_dis_lightweight
+          ,COUNT( case when diff_flagstation_info = 1 then 1 ELSE NULL end) diff_flagstation_info
+          ,COUNT( case when flagstation_lost = 1 then 1 ELSE NULL end) flagstation_lost
+          ,COUNT( case when same_station = 1 then 1 ELSE NULL end) same_station
+          ,COUNT( case when same_time_range_again = 1 then 1 ELSE NULL end) same_time_range_again
+          ,COUNT( case when min_out_in = 1 then 1 ELSE NULL end) min_out_in
+          ,COUNT( case when different_zhou = 1 then 1 ELSE NULL end) different_zhou
+          ,COUNT(1) transit_times
+          from tietou_feature_extraction tf GROUP BY vlp_id) res
+            ORDER BY total desc;
+  </insert>
+  <insert id="insertStatisticsMonthData">
+    insert into tietou_feature_statistic_month(vlp,vlp_id,month_time,same_car_number,speed,low_speed,high_speed,same_car_type,same_car_situation,short_dis_overweight
+      ,long_dis_lightweight,diff_flagstation_info,flagstation_lost,same_station,same_time_range_again,min_out_in,different_zhou,transit_times)
+    select vlp,vlp_id,month_time
+            ,COUNT( case when same_car_number = 0 then 1 ELSE NULL end) same_car_number
+            ,COUNT( case when speed =1 then 1 ELSE NULL end) speed
+            ,COUNT( case when low_speed =1 then 1 ELSE NULL end) low_speed
+            ,COUNT( case when high_speed =1 then 1 ELSE NULL end) high_speed
+            ,COUNT( case when same_car_type = 0 then 1 ELSE NULL end) same_car_type
+            ,COUNT( case when same_car_situation = 0 then 1 ELSE NULL end) same_car_situation
+            ,COUNT( case when short_dis_overweight = 1 then 1 ELSE NULL end) short_dis_overweight
+            ,COUNT( case when long_dis_lightweight = 1 then 1 ELSE NULL end) long_dis_lightweight
+            ,COUNT( case when diff_flagstation_info = 1 then 1 ELSE NULL end) diff_flagstation_info
+            ,COUNT( case when flagstation_lost = 1 then 1 ELSE NULL end) flagstation_lost
+            ,COUNT( case when same_station = 1 then 1 ELSE NULL end) same_station
+            ,COUNT( case when same_time_range_again = 1 then 1 ELSE NULL end) same_time_range_again
+            ,COUNT( case when min_out_in = 1 then 1 ELSE NULL end) min_out_in
+            ,COUNT( case when different_zhou = 1 then 1 ELSE NULL end) different_zhou
+            ,COUNT(1) transit_times
+    from tietou_feature_extraction tf where month_time = #{monthTime} GROUP BY vlp_id
+  </insert>
+  <insert id="insertStatisticsByMonth">
+    insert into tietou_feature_statistic(vlp,vlp_id,car_type,is_free_car,axlenum,same_car_number,speed,low_speed,high_speed,same_car_type,same_car_situation,short_dis_overweight
+      ,long_dis_lightweight,diff_flagstation_info,flagstation_lost,same_station,same_time_range_again,min_out_in,different_zhou,transit_times,total)
+    select *,same_car_number+low_speed+high_speed+same_car_type+same_car_situation+short_dis_overweight
+      +long_dis_lightweight+diff_flagstation_info+flagstation_lost+same_station+same_time_range_again+min_out_in+different_zhou total
+    from
+      (select vlp,vlp_id,(select car_type from highway_tietou.car_dic c where c.id = vlp_id) car_type
+               ,(select case when use_flag = 0 then 1 else 0 end from highway_tietou.car_dic c where c.id = vlp_id ) is_free_car
+               ,(select axlenum from highway_tietou.car_dic c where c.id = vlp_id) axlenum
+               ,sum(same_car_number) same_car_number
+               ,sum(speed) speed
+               ,sum(low_speed) low_speed
+               ,sum(high_speed) high_speed
+               ,sum(same_car_type) same_car_type
+               ,sum(same_car_situation) same_car_situation
+               ,sum(short_dis_overweight) short_dis_overweight
+               ,sum(long_dis_lightweight) long_dis_lightweight
+               ,sum(diff_flagstation_info) diff_flagstation_info
+               ,sum(flagstation_lost) flagstation_lost
+               ,sum(same_station) same_station
+               ,sum(same_time_range_again) same_time_range_again
+               ,sum(min_out_in) min_out_in
+               ,sum(different_zhou) different_zhou
+               ,sum(transit_times) transit_times
+       from tietou_feature_statistic_month tf GROUP BY vlp_id) res
+    ORDER BY total desc;
+  </insert>
+
+  <update id="truncateStatistic">
+    truncate table tietou_feature_statistic;
+  </update>
+  <update id="truncateStatisticMonth">
+    truncate table tietou_feature_statistic_month
+  </update>
+
+  <update id="updateScoreByVlpId" >
+    update tietou_feature_statistic set score = 0 where vlp_id = #{vlpId}
+  </update>
+
+  <update id="updateScoreFromGyhByVlpId">
+    update tietou_feature_statistic t set t.score = (select g.score from tietou_feature_statistic_gyh g where g.vlp_id = #{vlpId}) where t.vlp_id = #{vlpId}
+  </update>
+    <update id="updateStatisticsFreeCar">
+      update tietou_feature_statistic t set is_free_car = 1 where EXISTS (select 1 from highway_tietou.car_dic where id = t.vlp_id and use_flag = FALSE)
+    </update>
+
+  <select id="getScoreByVlpId" resultType="java.math.BigDecimal">
+    select score from highway_tietou.tietou_feature_statistic where vlp_id = #{vlpId}
+  </select>
+
+  <update id="pullStatisticScoreFromAll">
+    update tietou_feature_statistic s
+      set cheating = (select cheating from highway_tietou.tietou_feature_statistic g where s.vlp_id = g.vlp_id),
+          violation = (select violation from highway_tietou.tietou_feature_statistic g where s.vlp_id = g.vlp_id),
+          label = (select label from highway_tietou.tietou_feature_statistic g where s.vlp_id = g.vlp_id),
+          score = (select score from highway_tietou.tietou_feature_statistic g where s.vlp_id = g.vlp_id)
+  </update>
+
+  <select id="getTop20VlpId" resultType="java.lang.Integer">
+    select vlp_id from tietou_feature_statistic s where is_free_car = 0 order by score desc limit 20
+  </select>
+    <select id="selectFromAllByVlpId" resultMap="BaseResultMap">
+      select * from highway_tietou.tietou_feature_statistic where vlp_id = #{vlpId}
+    </select>
 </mapper>

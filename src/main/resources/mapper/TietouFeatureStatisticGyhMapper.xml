@@ -6,14 +6,25 @@
           WARNING - @mbg.generated
         -->
         <id column="id" jdbcType="INTEGER" property="id"/>
-        <result column="month_time" jdbcType="INTEGER" property="monthTime"/>
         <result column="vlp_id" jdbcType="INTEGER" property="vlpId"/>
         <result column="vlp" jdbcType="VARCHAR" property="vlp"/>
+        <result column="same_car_number" jdbcType="DECIMAL" property="sameCarNumber" />
+        <result column="speed" jdbcType="DECIMAL" property="speed" />
+        <result column="low_speed" jdbcType="DECIMAL" property="lowSpeed" />
+        <result column="high_speed" jdbcType="DECIMAL" property="highSpeed" />
+        <result column="same_car_type" jdbcType="DECIMAL" property="sameCarType" />
+        <result column="same_car_situation" jdbcType="DECIMAL" property="sameCarSituation" />
+        <result column="short_dis_overweight" jdbcType="DECIMAL" property="shortDisOverweight" />
+        <result column="long_dis_lightweight" jdbcType="DECIMAL" property="longDisLightweight" />
+        <result column="diff_flagstation_info" jdbcType="DECIMAL" property="diffFlagstationInfo" />
+        <result column="same_station" jdbcType="DECIMAL" property="sameStation" />
+        <result column="same_time_range_again" jdbcType="DECIMAL" property="sameTimeRangeAgain" />
+        <result column="min_out_in" jdbcType="DECIMAL" property="minOutIn" />
+        <result column="flagstation_lost" jdbcType="DECIMAL" property="flagstationLost" />
+        <result column="different_zhou" jdbcType="DECIMAL" property="differentZhou" />
         <result column="cheating" jdbcType="DECIMAL" property="cheating"/>
         <result column="violation" jdbcType="DECIMAL" property="violation"/>
         <result column="score" jdbcType="DECIMAL" property="score"/>
-        <result column="create_time" jdbcType="TIMESTAMP" property="createTime"/>
-        <result column="update_time" jdbcType="TIMESTAMP" property="updateTime"/>
         <result column="black_flag" jdbcType="TINYINT" property="blackFlag"/>
     </resultMap>
     <update id="updateSecondMarkByVlpIds">
@@ -23,151 +34,509 @@
         </foreach>
     </update>
     <select id="listCheatingCar" resultMap="BaseResultMap">
-        (select car_no vlp,car_no_id vlp_id,cheating,violation,score,true black_flag from tietou_blacklist where use_flag = true
-        ORDER BY score desc,cheating+violation desc)
-        union all
-        (select ts.vlp,ts.vlp_id,ts.cheating,ts.violation,ts.score,false black_flag
-        from tietou_feature_statistic ts
-        where ts.is_free_car = 0
-        <choose>
-            <when test="carType == 0">
-                and car_type = 0
-            </when>
-            <when test="carType == 1">
-                and car_type = 1
-            </when>
-            <when test="carType == -1">
-                and 1 = 1
-            </when>
-            <otherwise> and 1=2</otherwise>
-        </choose>
-        <choose>
-              <when test="riskFlag == null or riskFlag == 0">
-                  and ts.score &gt; 80
-              </when>
-              <when test="riskFlag == 1">
-                  and ts.score between 50 and 80
-              </when>
-              <otherwise>
-                  and ts.score between 20 and 49.99
-              </otherwise>
-          </choose>
-        <choose>
-            <when test="fields != null and fields.size != 0">
-                <foreach collection="fields" item="item" open="order by " close=" desc" separator="+">
-                    ${item}
-                </foreach>
-            </when>
-            <otherwise>
-                order by ts.score,ts.vlp_id desc)
-            </otherwise>
-        </choose>
-
+      select vlp,vlp_id,cheating,violation,score,black_flag from
+        (select car_no vlp,car_no_id vlp_id,cheating,violation,score,true black_flag,1 fake1
+                <choose>
+                    <when test="fields != null and fields.size != 0">
+                        ,0 fake2
+                    </when>
+                </choose>
+              from tietou_blacklist where use_flag = true
+            union
+            select ts.vlp,ts.vlp_id,ts.cheating,ts.violation,ts.score,false black_flag,0 fake1
+                <choose>
+                    <when test="fields != null and fields.size != 0">
+                        <foreach collection="fields" item="item" open="," close=" fake2" separator="+">
+                            ts.${item}
+                        </foreach>
+                    </when>
+                </choose>
+            from tietou_feature_statistic ts
+            where ts.is_free_car = 0 and ts.total > 0
+            <choose>
+                <when test="riskFlag == null or riskFlag == 0">
+                    and ts.score &gt; 80
+                </when>
+                <when test="riskFlag == 1">
+                    and ts.score between 50 and 80
+                </when>
+                <otherwise>
+                    and ts.score between 20 and 49.99
+                </otherwise>
+            </choose>
+            <choose>
+                <when test="carType == 0">
+                    and car_type in(11,12,13,14,15)
+                </when>
+                <when test="carType == 1">
+                    and car_type in(1,2,3,4,5)
+                </when>
+                <when test="carType == -1">
+                    and 1 = 1
+                </when>
+                <otherwise> and 1=2</otherwise>
+            </choose>
+              ) t1 order by fake1 desc
+            <choose>
+                <when test="fields != null and fields.size != 0">
+                    , fake2 desc
+                </when>
+            </choose>
+            , score desc
     </select>
 
-    <select id="listCheatingCarByTime" resultMap="BaseResultMap">
-        (select car_no vlp,car_no_id vlp_id,cheating,violation,score,true black_flag from tietou_blacklist where use_flag = true
-        ORDER BY score desc,cheating+violation desc)
-        union all
-        (SELECT DISTINCT s.vlp ,s.vlp_id ,s.cheating,s.violation,s.score,false black_flag
-          FROM
-	          (
-		          SELECT vlp_id, vlp, cheating, violation, score,
-		                diff_flagstation_info,short_dis_overweight,long_dis_lightweight,same_station,same_car_type,
-		                same_car_situation,different_zhou,same_car_number,min_out_in,same_time_range_again,
-		                flagstation_lost,high_speed,low_speed
-		          FROM tietou_feature_statistic
-		          WHERE
-                    <choose>
-                        <when test="riskFlag == null or riskFlag == 0">
-                            score &gt; 80
-                        </when>
-                        <when test="riskFlag == 1">
-                            score between 50 and 80
-                        </when>
-                        <otherwise>
-                            score between 20 and 49.99
-                        </otherwise>
-                    </choose>
-                    <choose>
-                      <when test="carType == 0">
-                        and car_type = 0
-                        </when>
-                        <when test="carType == 1">
-                            and car_type = 1
-                        </when>
-                        <otherwise> and 1 = 1</otherwise>
-                    </choose>
-			            and is_free_car = 0) s,
-			  (
-	              SELECT vlp_id FROM tietou
-	              WHERE extime BETWEEN #{beginDate} AND #{endDate}
-                    <choose>
-                        <when test="carDetailType == 1">
-                            and vc = 1
-                        </when>
-                        <when test="carDetailType == 2">
-                            and vc = 2
-                        </when>
-                        <when test="carDetailType == 3">
-                            and vc = 3
-                        </when>
-                        <when test="carDetailType == 4">
-                            and vc = 4
-                        </when>
-                        <when test="carDetailType == 5">
-                            and vc = 5
-                        </when>
-                        <when test="carDetailType == 11">
-                            and vc = 11
-                        </when>
-                        <when test="carDetailType == 12">
-                            and vc = 12
-                        </when>
-                        <when test="carDetailType == 13">
-                            and vc = 13
-                        </when>
-                        <when test="carDetailType == 14">
-                            and vc = 14
-                        </when>
-                        <when test="carDetailType == 15">
-                            and vc = 15
-                        </when>
-                        <otherwise> and 1 = 1</otherwise>
-                    </choose>
-                    <choose>
-                        <when test="rkId != null">
-                            and rk_id = #{rkId}
-                        </when>
-                    </choose>
-                    <choose>
-                        <when test="ckId != null">
-                            and ck_id = #{ckId}
-                        </when>
-                    </choose>
-                    <choose>
-                        <when test="axleNum != null">
-                            and axlenum = #{axleNum}
-                        </when>
-                    </choose>
-              ) t where s.vlp_id = t.vlp_id
+    <select id="listCheatingCarByTimeDefault" resultMap="BaseResultMap">
+        select vlp,vlp_id,cheating,violation,score,black_flag from
+        (select car_no vlp,car_no_id vlp_id,cheating,violation,score,true black_flag,1 fake1
+        from tietou_blacklist where use_flag = true
+        union
+        SELECT DISTINCT s.vlp ,s.vlp_id ,s.cheating,s.violation,s.score,false black_flag,0 fake1
+        FROM
+        (
+        SELECT vlp_id, vlp, cheating, violation, score,
+        diff_flagstation_info,short_dis_overweight,long_dis_lightweight,same_station,same_car_type,
+        same_car_situation,different_zhou,same_car_number,min_out_in,same_time_range_again,
+        flagstation_lost,high_speed,low_speed
+        FROM tietou_feature_statistic
+        WHERE is_free_car = 0 and total > 0
+        <choose>
+            <when test="riskFlag == -1">
+                and 1=1
+            </when>
+            <when test="riskFlag == null or riskFlag == 0">
+                and score &gt; 80
+            </when>
+            <when test="riskFlag == 1">
+                and score between 50 and 80
+            </when>
+            <otherwise>
+                and score between 20 and 49.99
+            </otherwise>
+        </choose>
+        <choose>
+            <when test="carType == 0">
+                and car_type in(11,12,13,14,15)
+            </when>
+            <when test="carType == 1">
+                and car_type in(1,2,3,4,5)
+            </when>
+            <otherwise> and 1 = 1</otherwise>
+        </choose>
+        <choose>
+            <when test="carDetailType == 1">
+                and car_type = 1
+            </when>
+            <when test="carDetailType == 2">
+                and car_type = 2
+            </when>
+            <when test="carDetailType == 3">
+                and car_type = 3
+            </when>
+            <when test="carDetailType == 4">
+                and car_type = 4
+            </when>
+            <when test="carDetailType == 5">
+                and car_type = 5
+            </when>
+            <when test="carDetailType == 11">
+                and car_type = 11
+            </when>
+            <when test="carDetailType == 12">
+                and car_type = 12
+            </when>
+            <when test="carDetailType == 13">
+                and car_type = 13
+            </when>
+            <when test="carDetailType == 14">
+                and car_type = 14
+            </when>
+            <when test="carDetailType == 15">
+                and car_type = 15
+            </when>
+            <otherwise> and 1 = 1</otherwise>
+        </choose>
+        <choose>
+            <when test="axleNum != null">
+                and axlenum = #{axleNum}
+            </when>
+        </choose>
+        ) s
+        ) t1 order by fake1 desc, score desc
+    </select>
+
+    <select id="listCheatingCarByTimeWithTietou" resultMap="BaseResultMap">
+        select vlp,vlp_id,cheating,violation,score,black_flag from
+        (select car_no vlp,car_no_id vlp_id,cheating,violation,score,true black_flag,1 fake1
+        from tietou_blacklist where use_flag = true
+        union
+        SELECT DISTINCT s.vlp ,s.vlp_id ,s.cheating,s.violation,s.score,false black_flag,0 fake1
+        FROM
+        (
+        SELECT vlp_id, vlp, cheating, violation, score,
+        diff_flagstation_info,short_dis_overweight,long_dis_lightweight,same_station,same_car_type,
+        same_car_situation,different_zhou,same_car_number,min_out_in,same_time_range_again,
+        flagstation_lost,high_speed,low_speed
+        FROM tietou_feature_statistic
+        WHERE is_free_car = 0 and total > 0
+        <choose>
+            <when test="riskFlag == -1">
+                and 1=1
+            </when>
+            <when test="riskFlag == null or riskFlag == 0">
+                and score &gt; 80
+            </when>
+            <when test="riskFlag == 1">
+                and score between 50 and 80
+            </when>
+            <otherwise>
+                and score between 20 and 49.99
+            </otherwise>
+        </choose>
+        <choose>
+            <when test="carType == 0">
+                and car_type in(11,12,13,14,15)
+            </when>
+            <when test="carType == 1">
+                and car_type in(1,2,3,4,5)
+            </when>
+            <otherwise> and 1 = 1</otherwise>
+        </choose>
+        <choose>
+            <when test="carDetailType == 1">
+                and car_type = 1
+            </when>
+            <when test="carDetailType == 2">
+                and car_type = 2
+            </when>
+            <when test="carDetailType == 3">
+                and car_type = 3
+            </when>
+            <when test="carDetailType == 4">
+                and car_type = 4
+            </when>
+            <when test="carDetailType == 5">
+                and car_type = 5
+            </when>
+            <when test="carDetailType == 11">
+                and car_type = 11
+            </when>
+            <when test="carDetailType == 12">
+                and car_type = 12
+            </when>
+            <when test="carDetailType == 13">
+                and car_type = 13
+            </when>
+            <when test="carDetailType == 14">
+                and car_type = 14
+            </when>
+            <when test="carDetailType == 15">
+                and car_type = 15
+            </when>
+            <otherwise> and 1 = 1</otherwise>
+        </choose>
+        <choose>
+            <when test="axleNum != null">
+                and axlenum = #{axleNum}
+            </when>
+        </choose>
+        ) s inner join tietou ti on s.vlp_id = ti.vlp_id
+                where 1 = 1
+                <choose>
+                    <when test="beginDate != null and endDate != null">
+                        and ti.extime BETWEEN #{beginDate} AND #{endDate}
+                    </when>
+                    <when test="beginDate != null and endDate == null">
+                        and ti.extime &gt;= #{beginDate}
+                    </when>
+                    <when test="beginDate == null and endDate != null">
+                        and ti.extime &lt;= #{endDate}
+                    </when>
+                </choose>
+                <choose>
+                    <when test="rkId != null">
+                        and ti.rk_id = #{rkId}
+                    </when>
+                </choose>
+                <choose>
+                    <when test="ckId != null">
+                        and ti.ck_id = #{ckId}
+                    </when>
+                </choose>
+                <choose>
+                    <when test="minDistance != null and maxDistance != null">
+                        and ti.tolldistance between #{minDistance} and #{maxDistance}
+                    </when>
+                    <when test="minDistance != null and maxDistance == null">
+                        and ti.tolldistance &gt;= #{minDistance}
+                    </when>
+                    <when test="minDistance == null and maxDistance != null">
+                        and ti.tolldistance &lt;= #{maxDistance}
+                    </when>
+                </choose>
+                <choose>
+                    <when test="minTravelTime != null and maxTravelTime != null">
+                        and TIMESTAMPDIFF(MINUTE,ti.entime,ti.extime) between #{minTravelTime} and #{maxTravelTime}
+                    </when>
+                    <when test="minTravelTime != null and maxTravelTime == null">
+                        and TIMESTAMPDIFF(MINUTE,ti.entime,ti.extime) &gt;= #{minTravelTime}
+                    </when>
+                    <when test="minTravelTime == null and maxTravelTime != null">
+                        and TIMESTAMPDIFF(MINUTE,ti.entime,ti.extime) &lt;= #{maxTravelTime}
+                    </when>
+                </choose>
+        ) t1 order by fake1 desc, score desc
+    </select>
+
+    <select id="listCheatingCarByTimeWithExtraction" resultMap="BaseResultMap">
+        select vlp,vlp_id,cheating,violation,score,black_flag from
+        (select car_no vlp,car_no_id vlp_id,cheating,violation,score,true black_flag,1 fake1
         <choose>
             <when test="fields != null and fields.size != 0">
-                <foreach collection="fields" item="item" open=" and " close=" " separator=" and ">
+                ,0 fake2
+            </when>
+        </choose>
+        from tietou_blacklist where use_flag = true
+        union
+        SELECT DISTINCT s.vlp ,s.vlp_id ,s.cheating,s.violation,s.score,false black_flag,0 fake1
+        <choose>
+            <when test="fields != null and fields.size != 0">
+                <foreach collection="fields" item="item" open="," close=" fake2" separator="+">
+                    s.${item}
+                </foreach>
+            </when>
+        </choose>
+        FROM
+        (
+        SELECT vlp_id, vlp, cheating, violation, score,
+        diff_flagstation_info,short_dis_overweight,long_dis_lightweight,same_station,same_car_type,
+        same_car_situation,different_zhou,same_car_number,min_out_in,same_time_range_again,
+        flagstation_lost,high_speed,low_speed
+        FROM tietou_feature_statistic
+        WHERE is_free_car = 0 and total > 0
+        <choose>
+            <when test="riskFlag == -1">
+                and 1=1
+            </when>
+            <when test="riskFlag == null or riskFlag == 0">
+                and score &gt; 80
+            </when>
+            <when test="riskFlag == 1">
+                and score between 50 and 80
+            </when>
+            <otherwise>
+                and score between 20 and 49.99
+            </otherwise>
+        </choose>
+        <choose>
+            <when test="carType == 0">
+                and car_type in(11,12,13,14,15)
+            </when>
+            <when test="carType == 1">
+                and car_type in(1,2,3,4,5)
+            </when>
+            <otherwise> and 1 = 1</otherwise>
+        </choose>
+        <choose>
+            <when test="carDetailType == 1">
+                and car_type = 1
+            </when>
+            <when test="carDetailType == 2">
+                and car_type = 2
+            </when>
+            <when test="carDetailType == 3">
+                and car_type = 3
+            </when>
+            <when test="carDetailType == 4">
+                and car_type = 4
+            </when>
+            <when test="carDetailType == 5">
+                and car_type = 5
+            </when>
+            <when test="carDetailType == 11">
+                and car_type = 11
+            </when>
+            <when test="carDetailType == 12">
+                and car_type = 12
+            </when>
+            <when test="carDetailType == 13">
+                and car_type = 13
+            </when>
+            <when test="carDetailType == 14">
+                and car_type = 14
+            </when>
+            <when test="carDetailType == 15">
+                and car_type = 15
+            </when>
+            <otherwise> and 1 = 1</otherwise>
+        </choose>
+        <choose>
+            <when test="axleNum != null">
+                and axlenum = #{axleNum}
+            </when>
+        </choose>
+        ) s
+        <choose>
+            <when test="fields != null and fields.size != 0">
+                <foreach collection="fields" item="item" open=" where " close=" " separator=" and ">
                     s.${item} > 0
                 </foreach>
             </when>
         </choose>
+        ) t1 order by fake1 desc
         <choose>
             <when test="fields != null and fields.size != 0">
-                <foreach collection="fields" item="item" open="order by " close=" desc" separator="+">
-                    s.${item}
-                </foreach>
+                , fake2 desc
             </when>
-            <otherwise>
-                order by s.score, s.vlp_id desc)
-            </otherwise>
         </choose>
+        , score desc
+    </select>
+
+    <select id="listCheatingCarByTime" resultMap="BaseResultMap">
+        select vlp,vlp_id,cheating,violation,score,black_flag from
+            (select car_no vlp,car_no_id vlp_id,cheating,violation,score,true black_flag,1 fake1
+              <choose>
+                    <when test="fields != null and fields.size != 0">
+                        ,0 fake2
+                    </when>
+                </choose>
+            from tietou_blacklist where use_flag = true
+            union
+            SELECT DISTINCT s.vlp ,s.vlp_id ,s.cheating,s.violation,s.score,false black_flag,0 fake1
+                <choose>
+                    <when test="fields != null and fields.size != 0">
+                        <foreach collection="fields" item="item" open="," close=" fake2" separator="+">
+                            s.${item}
+                        </foreach>
+                    </when>
+                </choose>
+              FROM tietou_feature_statistic s
+              left join tietou ti on s.vlp_id = ti.vlp_id
+              left join tietou_feature_extraction te on ti.id = te.id
+              WHERE s.is_free_car = 0 and s.total > 0
+                        <choose>
+                            <when test="riskFlag == -1">
+                                and 1=1
+                            </when>
+                            <when test="riskFlag == null or riskFlag == 0">
+                                and s.score &gt; 80
+                            </when>
+                            <when test="riskFlag == 1">
+                                and s.score between 50 and 80
+                            </when>
+                            <otherwise>
+                                and s.score between 20 and 49.99
+                            </otherwise>
+                        </choose>
+                        <choose>
+                            <when test="carType == 0">
+                                and s.car_type in(11,12,13,14,15)
+                            </when>
+                            <when test="carType == 1">
+                                and s.car_type in(1,2,3,4,5)
+                            </when>
+                            <otherwise> and 1 = 1</otherwise>
+                        </choose>
+                        <choose>
+                            <when test="carDetailType == 1">
+                                and s.car_type = 1
+                            </when>
+                            <when test="carDetailType == 2">
+                                and s.car_type = 2
+                            </when>
+                            <when test="carDetailType == 3">
+                                and s.car_type = 3
+                            </when>
+                            <when test="carDetailType == 4">
+                                and s.car_type = 4
+                            </when>
+                            <when test="carDetailType == 5">
+                                and s.car_type = 5
+                            </when>
+                            <when test="carDetailType == 11">
+                                and s.car_type = 11
+                            </when>
+                            <when test="carDetailType == 12">
+                                and s.car_type = 12
+                            </when>
+                            <when test="carDetailType == 13">
+                                and s.car_type = 13
+                            </when>
+                            <when test="carDetailType == 14">
+                                and s.car_type = 14
+                            </when>
+                            <when test="carDetailType == 15">
+                                and s.car_type = 15
+                            </when>
+                            <otherwise> and 1 = 1</otherwise>
+                        </choose>
+                        <choose>
+                            <when test="axleNum != null">
+                                and s.axlenum = #{axleNum}
+                            </when>
+                        </choose>
+                        <choose>
+                            <when test="beginDate != null and endDate != null">
+                                and ti.extime BETWEEN #{beginDate} AND #{endDate}
+                            </when>
+                            <when test="beginDate != null and endDate == null">
+                                and ti.extime &gt;= #{beginDate}
+                            </when>
+                            <when test="beginDate == null and endDate != null">
+                                and ti.extime &lt;= #{endDate}
+                            </when>
+                        </choose>
+                        <choose>
+                            <when test="rkId != null">
+                                and ti.rk_id = #{rkId}
+                            </when>
+                        </choose>
+                        <choose>
+                            <when test="ckId != null">
+                                and ti.ck_id = #{ckId}
+                            </when>
+                        </choose>
+                        <choose>
+                            <when test="minDistance != null and maxDistance != null">
+                                and ti.tolldistance between #{minDistance} and #{maxDistance}
+                            </when>
+                            <when test="minDistance != null and maxDistance == null">
+                                and ti.tolldistance &gt;= #{minDistance}
+                            </when>
+                            <when test="minDistance == null and maxDistance != null">
+                                and ti.tolldistance &lt;= #{maxDistance}
+                            </when>
+                        </choose>
+                        <choose>
+                            <when test="minTravelTime != null and maxTravelTime != null">
+                                and TIMESTAMPDIFF(MINUTE,ti.entime,ti.extime) between #{minTravelTime} and #{maxTravelTime}
+                            </when>
+                            <when test="minTravelTime != null and maxTravelTime == null">
+                                and TIMESTAMPDIFF(MINUTE,ti.entime,ti.extime) &gt;= #{minTravelTime}
+                            </when>
+                            <when test="minTravelTime == null and maxTravelTime != null">
+                                and TIMESTAMPDIFF(MINUTE,ti.entime,ti.extime) &lt;= #{maxTravelTime}
+                            </when>
+                        </choose>
+                        <choose>
+                            <when test="fields != null and fields.size != 0">
+                                <foreach collection="fields" item="item" open=" and " close=" " separator=" and ">
+                                    <if test="item == 'same_car_number' or item == 'same_car_type' or item == 'same_car_situation'">
+                                        te.${item} = 0
+                                    </if>
+                                    <if test="item != 'same_car_number' and item != 'same_car_type' and item != 'same_car_situation'">
+                                        te.${item} = 1
+                                    </if>
+
+                                </foreach>
+                            </when>
+                        </choose>
+           ) t1 order by fake1 desc
+            <choose>
+                <when test="fields != null and fields.size != 0">
+                    , fake2 desc
+                </when>
+            </choose>
+            , score desc
     </select>
 
     <select id="getRiskProportion" resultType="com.drcnet.highway.dto.RiskPeriodAmount">
@@ -175,14 +544,15 @@
         COUNT(case when ts.score BETWEEN 20 and 49.99 then 1 ELSE NULL end) low,
         COUNT(case when ts.score BETWEEN 50 and 79.99 then 1 ELSE NULL end) middle,
         COUNT(case when ts.score BETWEEN 80 and 100 then 1 ELSE NULL end) high
-        from tietou_feature_statistic_gyh ts
+        from tietou_feature_statistic ts
         <where>
-            1=1
+            is_free_car = 0 and
+            total > 0
             <if test="carType == 0">
-                and ts.car_type = 0
+                and ts.car_type between 11 and 15
             </if>
             <if test="carType == 1">
-                and ts.car_type = 1
+                and ts.car_type between 1 and 5
             </if>
         </where>
     </select>
@@ -193,4 +563,62 @@
     <select id="listByPeriod" resultMap="BaseResultMap">
         select vlp,vlp_id,score from tietou_feature_statistic_gyh where car_type = 1 order by score desc limit 0,4000
     </select>
+
+    <update id="truncateGyhData">
+        truncate table tietou_feature_statistic_gyh
+    </update>
+
+    <insert id="insertGyhDataFromStatistic">
+        insert into tietou_feature_statistic_gyh
+            (vlp,
+              vlp_id,
+              same_car_number,
+              low_speed,
+              high_speed,
+              speed,
+              same_car_type,
+              same_car_situation,
+              short_dis_overweight,
+              long_dis_lightweight,
+              diff_flagstation_info,
+              same_station,
+              same_time_range_again,
+              min_out_in,
+              flagstation_lost,
+              different_zhou,
+              cheating,
+              violation,
+              label,
+              score,
+              car_type,
+              use_flag,
+              total,
+              transit_times,
+              is_free_car )
+          select vlp,
+              vlp_id,
+              same_car_number,
+              low_speed,
+              high_speed,
+              speed,
+              same_car_type,
+              same_car_situation,
+              short_dis_overweight,
+              long_dis_lightweight,
+              diff_flagstation_info,
+              same_station,
+              same_time_range_again,
+              min_out_in,
+              flagstation_lost,
+              different_zhou,
+              cheating,
+              violation,
+              label,
+              score,
+              car_type,
+              use_flag,
+              total,
+              transit_times,
+              is_free_car from tietou_feature_statistic
+    </insert>
 </mapper>

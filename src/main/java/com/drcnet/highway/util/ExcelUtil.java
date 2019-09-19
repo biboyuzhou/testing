@@ -13,16 +13,25 @@ import com.drcnet.highway.dto.ExcelSheetDto;
 import com.drcnet.highway.exception.InternalServerErrorException;
 import com.drcnet.highway.exception.MyException;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.hssf.usermodel.HSSFDateUtil;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.*;
 
 import javax.servlet.http.HttpServletResponse;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Field;
 import java.net.URLEncoder;
+import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -240,5 +249,92 @@ public class ExcelUtil {
         }
     }
 
+    /**
+     * 获得Workbook对象,如果是xls文件，返回HSSFWorkbook,xlsx则返回XSSFWorkbook
+     */
+    public static Workbook getWorkbook(InputStream is,String filename){
+
+        try {
+            if (filename!= null && filename.endsWith(".xls")){
+                return new HSSFWorkbook(is);
+            }else if (filename!= null && filename.endsWith(".xlsx")){
+                return new XSSFWorkbook(is);
+            }
+        } catch (IOException e) {
+            log.error("{}",e);
+            throw new MyException("文件读取异常");
+        }
+
+        throw new MyException("文件读取异常");
+    }
+
+    public static String getCellString(Cell cell){
+        if (cell == null){
+            return null;
+        }
+        CellType cellTypeEnum = cell.getCellTypeEnum();
+        if (cellTypeEnum != CellType.STRING){
+            cell.setCellType(CellType.STRING);
+        }
+        return cell.getStringCellValue();
+    }
+    public static LocalDateTime getCellDateTime(Cell cell, DateTimeFormatter formatter){
+        if (cell == null){
+            return null;
+        }
+        CellType cellTypeEnum = cell.getCellTypeEnum();
+        if (cellTypeEnum == CellType.NUMERIC && HSSFDateUtil.isCellDateFormatted(cell)){
+            Date date = cell.getDateCellValue();
+            return DateUtils.date2LocalDateTime(date);
+        } else {
+            String dateStr = cell.getStringCellValue();
+            return DateUtils.parseTime(dateStr,formatter);
+        }
+    }
+
+    public static String getCellDateTimeStr(Cell cell, DateTimeFormatter formatter){
+        if (cell == null){
+            return null;
+        }
+        String str = null;
+        CellType cellTypeEnum = cell.getCellTypeEnum();
+        if (cellTypeEnum == CellType.NUMERIC && HSSFDateUtil.isCellDateFormatted(cell)){
+            Date date = cell.getDateCellValue();
+            str = DateUtils.date2LocalDateTime(date).format(formatter);
+        } else if (cellTypeEnum == CellType.STRING){
+            str = cell.getStringCellValue();
+        }
+        return str;
+    }
+
+    public static String getCellDateTimeStr(Cell cell, SimpleDateFormat dateFormat){
+        if (cell == null){
+            return null;
+        }
+        String str = null;
+        CellType cellTypeEnum = cell.getCellTypeEnum();
+        if (cellTypeEnum == CellType.NUMERIC && HSSFDateUtil.isCellDateFormatted(cell)){
+            Date date = cell.getDateCellValue();
+            str = dateFormat.format(date);
+        } else if (cellTypeEnum == CellType.STRING){
+            str = cell.getStringCellValue();
+        }
+        return str;
+    }
+
+    /**
+     * 判断所有单元格是否是空白
+     */
+    public static boolean isAllBlank(Cell ... cells){
+        boolean flag = true;
+        for (Cell cell : cells) {
+            CellType cellTypeEnum;
+            if (cell != null && (cellTypeEnum = cell.getCellTypeEnum()) != CellType._NONE && cellTypeEnum != CellType.BLANK) {
+                flag = false;
+                break;
+            }
+        }
+        return flag;
+    }
 
 }

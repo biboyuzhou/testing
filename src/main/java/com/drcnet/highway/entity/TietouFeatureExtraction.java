@@ -115,6 +115,12 @@ public class TietouFeatureExtraction implements Serializable {
     private Integer flagstationLost;
 
     private String sameRouteMark;
+
+    @Column(name = "rk_id")
+    private Integer rkId;
+
+    @Column(name = "ck_id")
+    private Integer ckId;
     /**
      * 用于模型训练完成后的打分
      */

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.drcnet.highway.dao.TietouOutboundMapper">
+  <resultMap id="BaseResultMap" type="com.drcnet.highway.entity.TietouOutbound">
+    <!--
+      WARNING - @mbg.generated
+    -->
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="month_time" jdbcType="INTEGER" property="monthTime" />
+    <result column="entime" jdbcType="TIMESTAMP" property="entime" />
+    <result column="rk" jdbcType="VARCHAR" property="rk" />
+    <result column="rk_id" jdbcType="INTEGER" property="rkId" />
+    <result column="envlp" jdbcType="VARCHAR" property="envlp" />
+    <result column="envlp_id" jdbcType="INTEGER" property="envlpId" />
+    <result column="envt" jdbcType="INTEGER" property="envt" />
+    <result column="envc" jdbcType="INTEGER" property="envc" />
+    <result column="extime" jdbcType="TIMESTAMP" property="extime" />
+    <result column="ck" jdbcType="VARCHAR" property="ck" />
+    <result column="ck_id" jdbcType="INTEGER" property="ckId" />
+    <result column="vlp" jdbcType="VARCHAR" property="vlp" />
+    <result column="vlp_id" jdbcType="INTEGER" property="vlpId" />
+    <result column="vc" jdbcType="INTEGER" property="vc" />
+    <result column="vt" jdbcType="INTEGER" property="vt" />
+    <result column="exlane" jdbcType="VARCHAR" property="exlane" />
+    <result column="oper" jdbcType="VARCHAR" property="oper" />
+    <result column="lastmoney" jdbcType="DECIMAL" property="lastmoney" />
+    <result column="freemoney" jdbcType="DECIMAL" property="freemoney" />
+    <result column="totalweight" jdbcType="INTEGER" property="totalweight" />
+    <result column="axlenum" jdbcType="INTEGER" property="axlenum" />
+    <result column="tolldistance" jdbcType="INTEGER" property="tolldistance" />
+    <result column="card" jdbcType="VARCHAR" property="card" />
+    <result column="flagstationinfo" jdbcType="VARCHAR" property="flagstationinfo" />
+    <result column="realflagstationinfo" jdbcType="VARCHAR" property="realflagstationinfo" />
+    <result column="inv" jdbcType="VARCHAR" property="inv" />
+    <result column="weight_limitation" jdbcType="INTEGER" property="weightLimitation" />
+  </resultMap>
+</mapper>

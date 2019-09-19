@@ -1,9 +1,9 @@
 package com.drcnet.highway.dto.request;
 
 import lombok.Data;
+import org.springframework.util.StringUtils;
 
 import java.io.Serializable;
-import java.util.List;
 
 /**
  * @Author jack
@@ -31,11 +31,11 @@ public class CheatingListTimeSearchDto extends PagingDto implements Serializable
     private Integer riskFlag;
 
     /**
-     * 开始日期
+     * 开始日期 只支持日期格式
      */
     private String beginDate;
     /**
-     * 结束日期
+     * 结束日期 只支持日期格式
      */
     private String endDate;
 
@@ -58,7 +58,42 @@ public class CheatingListTimeSearchDto extends PagingDto implements Serializable
     private String flags;
 
     /**
-     * 排序字段，按照传入的风险项的总次数排序
+     * 最小距离 单位千米
      */
-    private List<String> fields;
+    private Integer minDistance;
+
+    /**
+     * 最大距离 单位千米
+     */
+    private Integer maxDistance;
+
+    /**
+     * 最小行程时间 单位分钟
+     */
+    private Integer minTravelTime;
+
+    /**
+     * 最大行程时间 单位分钟
+     */
+    private Integer maxTravelTime;
+
+    /**
+     * 车辆报告加入限定条数
+     */
+    private Integer limit;
+
+    public boolean isTietouQuery(CheatingListTimeSearchDto dto) {
+        if (!StringUtils.isEmpty(beginDate) || !StringUtils.isEmpty(endDate) || rkId != null || ckId != null || minDistance != null
+                || maxDistance != null || minTravelTime != null || maxTravelTime != null ) {
+            return true;
+        }
+        return false;
+    }
+
+    public boolean isExtractionQuery(CheatingListTimeSearchDto dto) {
+        if (!StringUtils.isEmpty(flags)) {
+            return true;
+        }
+        return false;
+    }
 }

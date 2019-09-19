@@ -65,6 +65,9 @@ public class TietouCarDic implements Serializable {
 
     @Column(name = "weight_max")
     private Integer weightMax;
+
+    @Transient
+    private Integer cheatingAmount;
     private static final long serialVersionUID = 1L;
 
 }

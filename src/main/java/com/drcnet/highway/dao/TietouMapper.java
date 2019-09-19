@@ -1,17 +1,22 @@
 package com.drcnet.highway.dao;
 
+import com.drcnet.highway.domain.RiskByRankQuery;
 import com.drcnet.highway.domain.SameCarNum;
-import com.drcnet.highway.dto.response.CommonTypeCountDto;
-import com.drcnet.highway.dto.response.StationRiskCountDto;
-import com.drcnet.highway.dto.response.StationTripCountDto;
+import com.drcnet.highway.domain.StartEndTimeDomain;
 import com.drcnet.highway.dto.*;
 import com.drcnet.highway.dto.request.BlackDetailQueryDto;
 import com.drcnet.highway.dto.request.CarMonthQueryDto;
+import com.drcnet.highway.dto.request.RiskInOutDto;
+import com.drcnet.highway.dto.response.CommonTypeCountDto;
 import com.drcnet.highway.dto.response.DiffCarNoEnvlpDto;
+import com.drcnet.highway.dto.response.StationRiskCountDto;
+import com.drcnet.highway.dto.response.StationTripCountDto;
+import com.drcnet.highway.entity.Tietou2019;
 import com.drcnet.highway.entity.TietouOrigin;
 import com.drcnet.highway.util.templates.MyMapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -34,13 +39,15 @@ public interface TietouMapper extends MyMapper<TietouOrigin> {
 
     List<PeriodAmountDto> listPeriodViolationAmount(@Param("carId") Integer carId,@Param("type") Integer type);
 
-    List<TietouOrigin> listRiskInOutDetail(@Param("carId") Integer carId,@Param("code") Integer code);
+    List<TietouOrigin> listRiskInOutDetail(RiskInOutDto riskInOutDto);
 
-    RiskAmountDto getRiskAmount(@Param("carId") Integer carId, @Param("tableName") String tableName, @Param("extractionName") String extractionName, @Param("beginMonth") Integer beginMonth);
+    List<TietouOrigin> listRiskInOutDetailFromAll(RiskInOutDto riskInOutDto);
+
+    RiskAmountDto getRiskAmount(RiskByRankQuery riskByRankQuery);
 
     List<CheatingViolationDto> listCheatingCar(@Param("tableName") String tableName, @Param("scoreName") String scoreName);
 
-    RiskAmountDto getCheatingCount(@Param("extractionName") String extractionName, @Param("tableName") String tableName,@Param("carType") Integer carType);
+    RiskAmountDto getCheatingCount(@Param("carType") Integer carType);
 
     List<PeriodAmountDto> listCheatingPeriod(@Param("carType") Integer carType, @Param("queryMonth") Integer queryMonth);
 
@@ -74,14 +81,14 @@ public interface TietouMapper extends MyMapper<TietouOrigin> {
      * @param vlpId 车牌ID
      * @param inOutFlag 1为以出站车牌查询，0为以进站车牌查询
      */
-    Integer getMostUseAxleNum(@Param("vlpId") Integer vlpId,@Param("inOutFlag") int inOutFlag);
+    Integer getMostUseAxleNum(@Param("vlpId") Integer vlpId,@Param("inOutFlag") int inOutFlag, @Param("isTruck") Integer isTruck);
 
     /**
      * 查询出现次数最多的车型
      * @param vlpId 车牌ID
      * @param inOutFlag 1为以出站车牌查询，0为以进站车牌查询
      */
-    Integer getMostUseCarType(@Param("vlpId") Integer vlpId,@Param("inOutFlag") int inOutFlag);
+    Integer getMostUseCarType(@Param("vlpId") Integer vlpId,@Param("inOutFlag") int inOutFlag, @Param("isTruck") Integer isTruck);
 
     Integer updateFlagLostExtractionTrue(@Param("flagLostMembers") Set<Object> flagLostMembers);
 
@@ -179,14 +186,14 @@ public interface TietouMapper extends MyMapper<TietouOrigin> {
      * @param carId
      * @return
      */
-    List<DiffCarNoEnvlpDto> stasticDiffCarNoByCarId(Integer carId);
+    List<DiffCarNoEnvlpDto> stasticDiffCarNoByCarId(@Param("carId") Integer carId, @Param("tableName") String tableName, @Param("extractionName") String extractionName);
 
     /**
      * 查询指定出站车牌id的通行总次数
      * @param carId
      * @return
      */
-    Integer staticOutNumByEnvlp(@Param("vlpId") Integer carId);
+    Integer staticOutNumByEnvlp(@Param("vlpId") Integer carId, @Param("tableName") String tableName);
 
     /**
      * 根据入站和出站车牌查询通行记录 按照出站时间排倒叙
@@ -205,7 +212,7 @@ public interface TietouMapper extends MyMapper<TietouOrigin> {
      */
     List<TietouOrigin> queryOutTravelByEnvlp(@Param("vlpId") Integer vlpId, @Param("outStartTime") String startTimeStr, @Param("outEndTime") String endTimeStr);
 
-    List<PeriodAmountDto> listCarTypeDetail(@Param("vlpId")Integer vlpId,@Param("flag") Integer flag);
+    List<PeriodAmountDto> listCarTypeDetail(@Param("vlpId") Integer vlpId, @Param("flag") Integer flag,@Param("isCurrent") Integer isCurrent);
 
     /**
      * 查询指定车牌的速度异常、时间重叠风险
@@ -242,7 +249,7 @@ public interface TietouMapper extends MyMapper<TietouOrigin> {
 
     List<TietouOrigin> listByPeriod(@Param("start") int begin, @Param("end") int end);
 
-    List<SameCarNum> getSameNumCar();
+    List<SameCarNum> getSameNumCar(@Param("maxId") Integer maxId);
 
     List<SameCarNum> getSameNumCarByVlpId(@Param("vlpId") Integer vlpId);
 
@@ -251,26 +258,133 @@ public interface TietouMapper extends MyMapper<TietouOrigin> {
     int updateVlpIdAndEnvlpIdById(@Param("envlpId") Integer envlpId, @Param("vlpId") Integer vlpId, @Param("id") Integer id);
 
     /**
-     * 统计二绕站点之间互相通行的数据
+     * 二绕：统计站点之间互相通行的数据
      * @return
      */
-    List<StationTripCountDto> statistic2ndCount();
+    List<StationTripCountDto> secondStatisticTripCount(@Param("stationIdList") List<Integer> stationIdList);
 
     List<CommonTypeCountDto> statisticCarTypeCount();
 
     /**
-     * 统计每个出口站的行程记录
-     * @return
-     */
-    List<CommonTypeCountDto> statisticCkCount();
-
-    /**
      * 统计二绕每个站点的车辆总数、高中低风险数
      * @return
+     * @param stationIdList
      */
-    List<StationRiskCountDto> statistic2ndStationRiskCount();
+    List<StationRiskCountDto> statistic2ndStationRiskCount(@Param("stationIdList") List<Integer> stationIdList);
 
     Integer testMycat(@Param("routingId") Integer routingId);
 
     List<Long> testListMycat(@Param("routingId") Integer routingId);
+
+    List<TietouOrigin> listLowSpeedAndWeight(@Param("carNoId") Integer carNoId, @Param("limit") int limit
+            ,@Param("overWeightFlag") boolean overWeightFlag,@Param("lightWeightFlag") boolean lightWeightFlag);
+
+    List<TietouOrigin> listSameCarNumRecord(@Param("carNoId") Integer carNoId,@Param("limit") int limit);
+
+    /**
+     * 二绕：统计每个出口站的行程记录数量
+     * @return
+     */
+    List<CommonTypeCountDto> secondStatisticCkCount(@Param("stationIdList") List<Integer> stationIdList);
+
+    List<TietouOrigin> listByTimePeriod(@Param("beginDate") LocalDate beginDate,@Param("endDate") LocalDate endDate);
+
+    LocalDate selectMaxTime(@Param("localDate") LocalDate localDate);
+
+    int insertIgnore(TietouOrigin tietouOrigin);
+
+
+    /**
+     * 根据idList查询tietou记录
+     * @param idList
+     * @return
+     */
+    List<TietouOrigin> listAllByIdList(@Param("idList") List<Integer> idList);
+
+    /**
+     * 查询铁投表有重复记录的ID列表
+     */
+    List<String> selectRepeatIds(@Param("tietouFlag") boolean tietouFlag);
+
+    int deleteRepeatByIds(@Param("ids") List<Integer> ids,@Param("tietouFlag") boolean tietouFlag);
+
+    int deleteRepeatByTableIds(@Param("table") String table,@Param("ids") List<Integer> ids);
+
+
+    Integer selectByInAndOut(TietouOrigin origin);
+
+    Integer selectTietou2018ByInAndOut(TietouOrigin origin);
+
+    int updateTotalDistance(@Param("id") Integer tietouId, @Param("distance") Double distance);
+
+    int update2019TotalDistance(@Param("id") Integer tietou2019Id, @Param("distance") Double distance);
+
+    int updateTietouVlpId(@Param("vlpId") Integer vlpId, @Param("carNo") String carNo, @Param("newVlpId") Integer newVlpId,
+                          @Param("beginVc") Integer beginVc, @Param("endVc") Integer endVc);
+
+    int updateTietouEnVlpId(@Param("vlpId") Integer vlpId, @Param("carNo") String carNo, @Param("newVlpId") Integer newVlpId,
+                            @Param("beginVc") Integer beginVc, @Param("endVc") Integer endVc);
+
+    void updateVlpByVlpId(@Param("vlpId") Integer id, @Param("carNo") String carNo);
+
+    void updateEnVlpByVlpId(@Param("vlpId") Integer id, @Param("carNo") String carNo);
+
+    /**
+     * 查询配置表
+     * @param type
+     * @return
+     */
+    Integer selectExecuteConfig(@Param("type") Integer type);
+
+    /**
+     *
+     * @param vlpId
+     * @param carNo
+     * @param oldTruckId
+     */
+    void updateVlpIdAndCarNo(@Param("vlpId") Integer vlpId, @Param("carNo") String carNo, @Param("oldTruckId") Integer oldTruckId);
+
+    /**
+     *
+     * @param vlpId
+     * @param carNo
+     * @param oldTruckId
+     */
+    void updateEnVlpIdAndCarNo(@Param("vlpId") Integer vlpId, @Param("carNo") String carNo, @Param("oldTruckId") Integer oldTruckId);
+
+    /**
+     * 统计2019中指定vlpId的最大最小载重
+     * @param vlpId
+     * @param isTrunck
+     * @return
+     */
+    SameCarNum getWeightFrom2019ByVlpId(@Param("vlpId") Integer vlpId, @Param("isTruck") Integer isTrunck);
+
+    /**
+     * 从铁投总数据中查询各异常的数量统计
+     * @param query
+     * @return
+     */
+    RiskAmountDto getRiskAmountFromAll(RiskByRankQuery query);
+
+    /**
+     * 获取当前路段tietou表的最大id
+     * @return
+     */
+    Integer selectCurrentMaxId();
+
+    /**
+     * 批量插入tietou
+     * @param list
+     */
+    void insertBatchWithIdAndIgnore(@Param("list") List<Tietou2019> list);
+
+    int updateByPrimaryKeyAction(TietouOrigin tietou);
+
+    /**
+     * 查询指定vlp_id数据的最大出口时间和最小出口时间
+     * @param vlpIdList
+     * @return
+     */
+    StartEndTimeDomain getMaxMinExtimeOfTop20(@Param("vlpIdList") List<Integer> vlpIdList);
 }

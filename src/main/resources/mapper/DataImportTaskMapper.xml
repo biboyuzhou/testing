@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.drcnet.highway.dao.DataImportTaskMapper">
+  <resultMap id="BaseResultMap" type="com.drcnet.highway.entity.DataImportTask">
+    <!--
+      WARNING - @mbg.generated
+    -->
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="path" jdbcType="VARCHAR" property="path" />
+    <result column="state" jdbcType="INTEGER" property="state" />
+    <result column="md5" jdbcType="VARCHAR" property="md5" />
+    <result column="bound_type" jdbcType="INTEGER" property="boundType" />
+    <result column="success_amount" jdbcType="INTEGER" property="successAmount" />
+    <result column="failure_amount" jdbcType="INTEGER" property="failureAmount" />
+    <result column="repeat_amount" jdbcType="INTEGER" property="repeatAmount" />
+    <result column="error_msg" jdbcType="VARCHAR" property="errorMsg" />
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+    <result column="finish_time" jdbcType="TIMESTAMP" property="finishTime" />
+    <result column="username" jdbcType="TIMESTAMP" property="username" />
+    <result column="user_id" jdbcType="TIMESTAMP" property="userId" />
+    <result column="filename" jdbcType="TIMESTAMP" property="filename" />
+  </resultMap>
+    <select id="selectByMd5AndType" resultMap="BaseResultMap">
+      select * from data_import_task where md5 = #{md5} and bound_type = #{type} and state not in (3,4)
+    </select>
+    <select id="listDataImportTaskLog" resultMap="BaseResultMap">
+      SELECT * FROM
+        (select d.id,d.state,d.bound_type,d.create_time,d.finish_time,d.success_amount,d.error_msg,u.username,d.user_id,d.filename,d.failure_amount,d.repeat_amount
+         from data_import_task d left join user u on d.user_id = u.id
+         union all
+         select t.id,t.state,2,t.create_time,t.finish_time,IFNULL(t.cal_num,0),null,null,null,null,0,0 from task t where state = 11
+        ) r
+      ORDER BY create_time desc
+    </select>
+</mapper>

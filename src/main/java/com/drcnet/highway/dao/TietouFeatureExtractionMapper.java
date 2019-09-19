@@ -49,4 +49,14 @@ public interface TietouFeatureExtractionMapper extends MyMapper<TietouFeatureExt
      * @return
      */
     List<TietouFeatureExtraction> listExtractionByCarId(@Param("carId") Integer carId);
+
+    void truncate();
+
+    /**
+     * 根据铁头表的id从总表中获取extraction
+     * @param i
+     * @param boundary
+     * @return
+     */
+    int pullExtractionFromAll(@Param("start") int i, @Param("end") int boundary);
 }

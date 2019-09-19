@@ -1,5 +1,6 @@
 package com.drcnet.highway.dao;
 
+import com.drcnet.highway.domain.ListCheatingCarByTimeQuery;
 import com.drcnet.highway.dto.RiskPeriodAmount;
 import com.drcnet.highway.dto.request.CheatingListDto;
 import com.drcnet.highway.dto.request.CheatingListTimeSearchDto;
@@ -21,5 +22,15 @@ public interface TietouFeatureStatisticGyhMapper extends MyMapper<TietouFeatureS
 
     List<TietouFeatureStatisticGyh> listByPeriod();
 
-    List<TietouFeatureStatisticGyh> listCheatingCarByTime(CheatingListTimeSearchDto dto);
+    List<TietouFeatureStatisticGyh> listCheatingCarByTimeDefault(CheatingListTimeSearchDto dto);
+
+    List<TietouFeatureStatisticGyh> listCheatingCarByTimeWithTietou(ListCheatingCarByTimeQuery query);
+
+    List<TietouFeatureStatisticGyh> listCheatingCarByTimeWithExtraction(ListCheatingCarByTimeQuery query);
+
+    List<TietouFeatureStatisticGyh> listCheatingCarByTime(ListCheatingCarByTimeQuery dto);
+
+    void truncateGyhData();
+
+    void insertGyhDataFromStatistic();
 }

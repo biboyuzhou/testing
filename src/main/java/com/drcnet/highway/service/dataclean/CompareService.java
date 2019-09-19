@@ -2,26 +2,27 @@ package com.drcnet.highway.service.dataclean;
 
 
 import com.drcnet.highway.common.BeanConvertUtil;
-import com.drcnet.highway.constants.CarSituationConsts;
 import com.drcnet.highway.constants.TipsConsts;
 import com.drcnet.highway.dao.*;
 import com.drcnet.highway.domain.CarFlag;
 import com.drcnet.highway.domain.SameCarNum;
 import com.drcnet.highway.domain.StationFlag;
+import com.drcnet.highway.dto.CarNoDto;
 import com.drcnet.highway.dto.SuccessAmountDto;
 import com.drcnet.highway.entity.*;
 import com.drcnet.highway.entity.dic.StationDic;
 import com.drcnet.highway.entity.dic.TietouCarDic;
 import com.drcnet.highway.exception.MyException;
+import com.drcnet.highway.service.ScriptExecuteService;
 import com.drcnet.highway.service.TietouStationDicService;
 import com.drcnet.highway.service.dataclean.flag.impl.CertainFlagImpl;
 import com.drcnet.highway.service.dataclean.flag.impl.UncertainFlagImpl;
+import com.drcnet.highway.service.dic.TietouCarDicService;
+import com.drcnet.highway.service.schedule.CalculateScheduleTask;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
-import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFCell;
-import org.apache.poi.xssf.usermodel.XSSFRow;
-import org.apache.poi.xssf.usermodel.XSSFSheet;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.context.ApplicationContext;
 import org.springframework.data.redis.core.BoundHashOperations;
@@ -84,7 +85,17 @@ public class CompareService {
     private TietouFeatureStatisticMapper tietouFeatureStatisticMapper;
 
     @Resource
+    private ScriptExecuteService scriptExecuteService;
+
+    @Resource
+    private CalculateScheduleTask calculateScheduleTask;
+
+    @Resource
     private TietouStationDicService tietouStationDicService;
+    @Resource
+    private TietouCarDicService tietouCarDicService;
+    @Resource
+    private Tietou2019Mapper tietou2019Mapper;
 
     /**
      * 铁头给的二绕西出入站口map
@@ -472,7 +483,7 @@ public class CompareService {
         long timeMillis = System.currentTimeMillis();
         CompareService currentProxy = applicationContext.getBean(CompareService.class);
         BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps("car_cache_all");
-        List<StationDic> stationDics = stationDicMapper.selectAll();
+        List<StationDic> stationDics = stationDicMapper.selectAllStation();
         Map<String, Integer> stationMap = stationDics.stream().collect(Collectors.toMap(StationDic::getStationName, StationDic::getId));
         Integer maxId = tietouOriginal2019Mapper.selectMaxId();
         int distance = 1000000;
@@ -535,7 +546,7 @@ public class CompareService {
         long timeMillis = System.currentTimeMillis();
         CompareService currentProxy = applicationContext.getBean(CompareService.class);
         BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps("car_cache");
-        List<StationDic> stationDics = stationDicMapper.selectAll();
+        List<StationDic> stationDics = stationDicMapper.selectAllStation();
         Map<String, Integer> stationMap = stationDics.stream().collect(Collectors.toMap(StationDic::getStationName, StationDic::getId));
         Integer maxId = 21611570;
         int distance = 10000;
@@ -787,7 +798,7 @@ public class CompareService {
         List<String> carNoList = new ArrayList<>();
         for (int i = 0; i < subList.size(); i++) {
             List<TietouOrigin> tietouOriginList = tietouMapper.listByVlpId(subList.get(i));
-            TietouCarDic carDic = tietouCarDicMapper.selectByPrimaryKey(subList.get(i));
+            TietouCarDic carDic = tietouCarDicMapper.selectById(subList.get(i));
             if (carDic != null && carDic.getAxlenum() != null) {
                 Integer dicAxlenum = carDic.getAxlenum();
 
@@ -863,7 +874,7 @@ public class CompareService {
         Set<Map.Entry<Integer, List<TietouOrigin>>> entrySet = groupMap.entrySet();
         log.info("轴数不一致的车牌共有 {} 个", entrySet.size());
         entrySet.stream().forEach(entry -> {
-            TietouCarDic carDic = tietouCarDicMapper.selectByPrimaryKey(entry.getKey());
+            TietouCarDic carDic = tietouCarDicMapper.selectById(entry.getKey());
             if (carDic != null && carDic.getAxlenum() != null) {
                 Integer dicAxlenum = carDic.getAxlenum();
                 // 当前车牌所有的行程数据
@@ -1124,66 +1135,267 @@ public class CompareService {
 
     }
 
-    public void getSameNumCar() {
-        List<SameCarNum> list = tietouMapper.getSameNumCar();
-        Map<String, Integer> map = new HashMap<>(10000);
-        list.stream().forEach(l -> {
-            Integer vlpId = l.getVlpId();
-            TietouCarDic carDic = tietouCarDicMapper.selectByPrimaryKey(vlpId);
-            if (carDic.getCarType() != null) {
-                List<SameCarNum> carNumList = tietouMapper.getSameNumCarByVlpId(vlpId);
-                Map<Integer, Integer> vcMap = new HashMap<>(carNumList.size());
-                carNumList.stream().forEach(c -> {
-                    Integer vc = c.getVc();
-                    if (carDic.getCarType() < 10 && vc >= 10) {
-                        map.put(String.valueOf(vlpId), vc);
-                    }
-                    if (carDic.getCarType() >= 10 && vc < 10) {
-                        map.put(String.valueOf(vlpId), vc);
-                    }
-                });
+    public void handleSameCar2CarType() {
+        Integer maxId = tietou2019Mapper.selectMaxId();
+        List<SameCarNum> list = tietouMapper.getSameNumCar(maxId);
+        CompareService currentProxy = applicationContext.getBean(CompareService.class);
+        int distance = 5000;
+        int dis = 500;
+        for (int i = 0; i < list.size(); i += distance) {
+            int end = i + distance < list.size() ? i + distance : list.size();
+            List<SameCarNum> sameCarNumList = list.subList(i, end);
+            int size = sameCarNumList.size();
+            int latchSize = size % dis == 0 ? size / dis : size / dis + 1;
+            CountDownLatch latch = new CountDownLatch(latchSize);
+            for (int j = 0; j < size; j += dis) {
+                int nextJ = j + dis;
+                int boundary = nextJ < size ? nextJ : size;
+                currentProxy.handleSameCar2CarTypeAsync(sameCarNumList.subList(j, boundary), latch, tietouCarDicMapper, tietouMapper);
             }
+            try {
+                latch.await();
+            } catch (InterruptedException e) {
+                log.error("{}", e);
+                Thread.currentThread().interrupt();
+            } finally {
+                log.info("已执行完{}条记录", i + distance);
+            }
+        }
 
-        });
-        redisTemplate.delete("sameCarNo");
-        BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps("sameCarNo");
-        hashOperations.putAll(map);
+        /*
+*/
     }
 
-    public void processSameNumCar() {
-        BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps("sameCarNo");
-        Map<Object, Object> vlpIdMap = hashOperations.entries();
-        Set<Map.Entry<Object, Object>> entrySet = vlpIdMap.entrySet();
+    @Async("taskExecutor")
+    public void handleSameCar2CarTypeAsync(List<SameCarNum> subList, CountDownLatch latch, TietouCarDicMapper tietouCarDicMapper, TietouMapper tietouMapper) {
+        try {
+            subList.stream().forEach(l -> {
+                Integer vlpId = l.getVlpId();
+                TietouCarDic carDic = tietouCarDicMapper.selectById(vlpId);
+                if (carDic.getCarType() != null) {
+                    //默认车型为客车，新增车型为货车
+                    if (carDic.getCarType() < 10 ) {
+                        handleNewTruckCondition(vlpId, carDic, tietouCarDicMapper, tietouMapper);
+                    }
 
-        entrySet.stream().forEach(s -> {
-            Integer vlpId = Integer.parseInt(String.valueOf(s.getKey()));
-            Integer vc = Integer.parseInt(String.valueOf(s.getValue()));
+                    Integer oldTruckId = null;
 
-            TietouCarDic carDic = tietouCarDicMapper.selectById(vlpId);
-
-            //默认车型为客车，新增车型为货车
-            if (carDic.getCarType() < 10 && vc >= 10) {
-                carDic.setId(null);
-                carDic.setCarNo(carDic.getCarNo() + "_货");
-                carDic.setCarType(vc);
-                this.tietouCarDicMapper.insert(carDic);
-            }
-
-            //默认车型为货车。新增车型为客车
-            if (carDic.getCarType() >= 10 && vc < 10) {
-                String carNo = carDic.getCarNo();
-                TietouCarDic newCar = carDic;
-                carDic.setCarNo(carDic.getCarNo() + "_货");
-                int result = tietouCarDicMapper.updateByPrimaryKey(carDic);
-                if (result == 1) {
-                    newCar.setId(null);
-                    newCar.setCarType(vc);
-                    newCar.setCarNo(carNo);
-                    this.tietouCarDicMapper.insert(newCar);
+                    //默认车型为货车。新增车型为客车
+                    if (carDic.getCarType() >= 10 ) {
+                        handleNewCarCondition(vlpId, carDic, oldTruckId, tietouCarDicMapper, tietouMapper);
+                    }
                 }
+                log.info("-----------------------{}-{} 的车辆已处理完毕！", vlpId, carDic.getCarNo());
+            });
+        } catch (Exception e) {
+            log.error("handleSameCar2CarTypeAsync is error, {}", e);
+        } finally {
+            latch.countDown();
+        }
+
+    }
+
+
+
+
+    /**
+     * 处理默认车型为客车，新增车型为货车
+     * 1、查询新增的"_货"的车牌是否已存在
+     * 2、统计新增车牌的车辆类型、轴数、最大载重、最小载重
+     * 3、如已存在则更新，如不存在则新增车牌
+     * 4、更新tietou表的货车记录的vlpId、vlp为新增的货车车牌
+     * @param vlpId
+     * @param carDic
+     * @param tietouCarDicMapper
+     * @param tietouMapper
+     */
+    private void handleNewTruckCondition(Integer vlpId, TietouCarDic carDic, TietouCarDicMapper tietouCarDicMapper, TietouMapper tietouMapper) {
+        TietouCarDic newCar = new TietouCarDic();
+        newCar.setId(null);
+        if (carDic.getCarNo().contains("货")) {
+            String[] strArray = carDic.getCarNo().split("_货");
+            newCar.setCarNo(strArray[0] + "_货");
+        } else {
+            newCar.setCarNo(carDic.getCarNo() + "_货");
+        }
+
+        TietouCarDic existCar =tietouCarDicMapper.selectByCarNo(newCar.getCarNo());
+        if (existCar == null) {
+            newCar.setUseFlag(true);
+            newCar.setCreateTime(LocalDateTime.now());
+            //statisticCarTypeAndAxlenum(vlpId, newCar, 1);
+            tietouCarDicMapper.insertNewCar(newCar);
+            if (newCar.getId() == null) {
+                newCar = tietouCarDicMapper.selectByCarNo(newCar.getCarNo());
+            }
+        } else {
+            statisticCarTypeAndAxlenum(vlpId, existCar, 1);
+            tietouCarDicMapper.updateAxlenumById(existCar);
+            newCar = existCar;
+        }
+
+
+        //将货车记录的vlpId、vlp修改为新增的货车车牌
+        tietouMapper.updateTietouVlpId(vlpId, newCar.getCarNo(), newCar.getId(), 11, 15);
+        tietouMapper.updateTietouEnVlpId(vlpId, newCar.getCarNo(), newCar.getId(), 11, 15);
+        //log.info("新增货车车牌{}-{}", newCar.getId(), newCar.getCarNo());
+    }
+
+    /**
+     * 处理默认车型为货车。新增车型为客车的场景
+     * 1、判断字段表里的记录的车牌号是否已经有 _货
+     * 2、如果没有则判断增加"_货"后是否在car_dic中有记录，如有则查询出该记录
+     * @param vlpId
+     * @param carDic
+     * @param oldTruckId
+     * @param tietouCarDicMapper
+     * @param tietouMapper
+     */
+    private void handleNewCarCondition(Integer vlpId, TietouCarDic carDic, Integer oldTruckId, TietouCarDicMapper tietouCarDicMapper, TietouMapper tietouMapper) {
+        String carNo = carDic.getCarNo();
+        if (!carNo.contains("货")) {
+            log.info("该车牌已经修改过，carId:{}, carNo:{}, vlpId: {}", carDic.getId(), carNo, vlpId);
+            carDic.setCarNo(carDic.getCarNo() + "_货");
+            TietouCarDic existCar = tietouCarDicMapper.selectByCarNo(carDic.getCarNo());
+            //如果不存在说明可以新增"_货"的车牌
+            if (existCar == null) {
+                int result = tietouCarDicMapper.updateCarNoById(carDic.getCarNo(), carDic.getId());
+                if (result != 1) {
+                    log.info("处理同一车牌出现客车货车的数据时，默认车型为货车的场景，更新货车车牌为_货时出错！vlpId:{}, carNo:{}", vlpId, carNo);
+                }
+            } else {
+                oldTruckId = existCar.getId();
             }
 
-        });
+        } else {
+            carNo = carNo.substring(0,7);
+        }
+
+        TietouCarDic newCar = tietouCarDicMapper.selectByCarNo(carNo);
+        if (newCar == null) {
+            newCar = new TietouCarDic();
+            newCar.setId(null);
+            newCar.setCarNo(carNo);
+            newCar.setUseFlag(true);
+            newCar.setCreateTime(LocalDateTime.now());
+            //statisticCarTypeAndAxlenum(vlpId, newCar, 0);
+            tietouCarDicMapper.insertNewCar(newCar);
+        }
+        //将客车记录的vlpId、vlp修改为新增的客车车牌
+        if (newCar.getId() == null) {
+            newCar = tietouCarDicMapper.selectByCarNo(carNo);
+        }
+        tietouMapper.updateTietouVlpId(vlpId, newCar.getCarNo(), newCar.getId(), 1, 5);
+        tietouMapper.updateTietouVlpId(vlpId, newCar.getCarNo(), newCar.getId(), 1, 5);
+        //log.info("新增客车车牌{}-{}", newCar.getId(), newCar.getCarNo());
+
+        //将货车记录的车牌改为有下划线的  _货   车牌
+        if (oldTruckId == null) {
+            tietouMapper.updateVlpByVlpId(carDic.getId(), carDic.getCarNo());
+            tietouMapper.updateEnVlpByVlpId(carDic.getId(), carDic.getCarNo());
+        } else {
+            tietouMapper.updateVlpIdAndCarNo(carDic.getId(), carDic.getCarNo(), oldTruckId);
+            tietouMapper.updateEnVlpIdAndCarNo(carDic.getId(), carDic.getCarNo(), oldTruckId);
+        }
+    }
+
+    public void getSameNumCar_0824() {
+
+
+    }
+
+    @Async("taskExecutor")
+    public void handleDifferentCarType(List<SameCarNum> list, CountDownLatch latch, TietouCarDicMapper tietouCarDicMapper, Tietou2019Mapper tietou2019Mapper) {
+        try {
+            list.stream().forEach(l -> {
+                Integer vlpId = l.getVlpId();
+                Integer carType = l.getCarType();
+                Integer vc = l.getVc();
+                Integer tietou2019Id = l.getId();
+                TietouCarDic carDic = tietouCarDicMapper.selectById(vlpId);
+                //如果该车牌为有效车牌且如果类型相减的绝对值大于4，则说明一个是客车一个是货车,这种情况才需要更改vlpId
+                if (carDic.getUseFlag() && Math.abs(carType - vc) > 4) {
+                    String carNo = carDic.getCarNo();
+                    String newCaeNo = "";
+                    if (carNo.contains("货") && vc < 10) {
+                        newCaeNo = carNo.substring(0,7);
+                    } else if (!carNo.contains("货") && vc > 10){
+                        newCaeNo = carNo + "_货";
+                    }
+                    if (!StringUtils.isEmpty(newCaeNo)) {
+                        TietouCarDic rightCar = tietouCarDicMapper.getIdByCarNo(newCaeNo);
+                        if (rightCar == null) {
+                            rightCar = new TietouCarDic();
+                            rightCar.setCarNo(newCaeNo);
+                            rightCar.setUseFlag(true);
+                            rightCar.setCreateTime(LocalDateTime.now());
+                            Integer isTruck = 0;
+                            if (newCaeNo.contains("货")) {
+                                isTruck = 1;
+                            }
+                            statisticCarTypeAndAxlenum(vlpId, rightCar, isTruck);
+                            this.tietouCarDicMapper.insertNewCar(rightCar);
+                            if (rightCar.getId() == null) {
+                                rightCar = tietouCarDicMapper.selectByCarNo(rightCar.getCarNo());
+                            }
+                        }
+                        tietou2019Mapper.updateVlpIdById(tietou2019Id, rightCar.getId());
+                        log.info("-----------------------id_vlpId:{}_{}  new CarId:{}-{} 的车辆已处理完毕！", tietou2019Id, vlpId, rightCar.getId(), rightCar.getCarNo());
+
+                    } else {
+                        log.info("未进行处理！ 具体数据为：{}");
+                    }
+
+                }
+
+            });
+        } catch (Exception e) {
+
+        } finally {
+            latch.countDown();
+        }
+
+    }
+
+    private void statisticCarTypeAndAxlenum(Integer vlpId, TietouCarDic carDic, Integer isTruck) {
+        Integer axleNum = tietouMapper.getMostUseAxleNum(vlpId, 1, isTruck);
+        Integer carType = tietouMapper.getMostUseCarType(vlpId, 1, isTruck);
+        SameCarNum sameCarNum = tietouMapper.getWeightFrom2019ByVlpId(vlpId, isTruck);
+        carDic.setAxlenum(axleNum);
+        carDic.setCarType(carType);
+        if (sameCarNum != null) {
+            carDic.setWeightMin(sameCarNum.getMinWeight());
+            carDic.setWeightMax(sameCarNum.getMaxWeight());
+        }
+
+    }
+
+    public void handleDifferentCarTypeFromCarDic() {
+        Integer maxId = tietou2019Mapper.selectMaxId();
+        int distance = 1000000;
+        int dis = 50000;
+        CompareService currentProxy = applicationContext.getBean(CompareService.class);
+
+        for (int i = 1; i <= maxId; i += distance) {
+            int end = i + distance < maxId ? i + distance : maxId;
+            List<SameCarNum> sameCarNumList = tietou2019Mapper.getDifferentCarType(i, end);
+            int size = sameCarNumList.size();
+            int latchSize = size % dis == 0 ? size / dis : size / dis + 1;
+            CountDownLatch latch = new CountDownLatch(latchSize);
+            for (int j = 0; j < size; j += dis) {
+                int nextJ = j + dis;
+                int boundary = nextJ < size ? nextJ : size;
+                currentProxy.handleDifferentCarType(sameCarNumList.subList(j, boundary), latch, tietouCarDicMapper, tietou2019Mapper);
+            }
+            try {
+                latch.await();
+            } catch (InterruptedException e) {
+                log.error("{}", e);
+                Thread.currentThread().interrupt();
+            } finally {
+                log.info("已执行完{}条记录", i + distance);
+            }
+        }
     }
 
 
@@ -1314,7 +1526,8 @@ public class CompareService {
         BoundHashOperations<String, Object, Object> carCache = redisTemplate.boundHashOps("car_cache");
         List<TietouOrigin> originList = new ArrayList<>(5000);
         try (InputStream is = file.getInputStream()) {
-            Workbook workbook = WorkbookFactory.create(is);
+            Workbook workbook = new XSSFWorkbook(is);
+
             Sheet sheet = workbook.getSheetAt(0);
             int lastRowNum = sheet.getLastRowNum();
             for (int i = 1; i <= lastRowNum; i++) {
@@ -1324,77 +1537,53 @@ public class CompareService {
                 TietouOrigin origin = new TietouOrigin();
                 Row row = sheet.getRow(i);
                 //card
-                origin.setCard(row.getCell(1).getStringCellValue());
+                origin.setRk(row.getCell(0).getStringCellValue());
+                //设置进出站ID
+                Integer rkId = tietouStationDicService.getOrInertByName(origin.getRk());
+                origin.setRkId(rkId);
 
-                //ck,ck_id
-                Cell vlpCell = row.getCell(3);
-                if (vlpCell != null && !StringUtils.isEmpty(vlpCell.getStringCellValue())) {
-                    String vlp = vlpCell.getStringCellValue();
-                    origin.setVlp(vlp);
-                    if (carCache.get(vlp) != null) {
-                        origin.setVlpId(Integer.parseInt(String.valueOf(carCache.get(vlp))));
-                    }
-                }
+                origin.setEnvlp(row.getCell(1).getStringCellValue());
+                CarNoDto carNoDto = tietouCarDicService.getOrInsertByName(origin.getEnvlp(), 0);
+                origin.setEnvlpId(carNoDto.getId());
+                origin.setEnvlp(carNoDto.getCarNo());
 
-                //出口车道
-                origin.setExlane(row.getCell(4).getStringCellValue());
-
-                //
-                origin.setOper(row.getCell(5).getStringCellValue());
-
-                String extime = row.getCell(7).getStringCellValue();
+                String date = row.getCell(2).getStringCellValue();
+                String time = row.getCell(3).getStringCellValue();
+                StringBuilder sb = new StringBuilder(date);
+                sb.append(" ").append(time);
                 DateTimeFormatter df = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-                origin.setExtime(LocalDateTime.parse(extime, df));
+                origin.setEntime(LocalDateTime.parse(sb.toString(), df));
 
-                origin.setVt(CarSituationConsts.SITUATION_MAP.get(row.getCell(8).getStringCellValue()));
-                origin.setVc(CarSituationConsts.CAR_TYPE_MAP.get(row.getCell(9).getStringCellValue()));
+                origin.setCk(row.getCell(6).getStringCellValue());
+                //设置进出站ID
+                Integer ckId = tietouStationDicService.getOrInertByName(origin.getCk());
+                origin.setCkId(ckId);
 
+                origin.setVlp(row.getCell(7).getStringCellValue());
+                CarNoDto carNoDtoVlp = tietouCarDicService.getOrInsertByName(origin.getEnvlp(), 0);
+                origin.setVlpId(carNoDtoVlp.getId());
+                origin.setVlp(carNoDtoVlp.getCarNo());
 
-                Cell rkCell = row.getCell(10);
-                if (rkCell != null && !StringUtils.isEmpty(rkCell.getStringCellValue())) {
-                    String rk = rkCell.getStringCellValue();
-                    origin.setRk(rk);
-                    if (hashOperations.get(rk) != null) {
-                        origin.setRkId(Integer.parseInt(String.valueOf(hashOperations.get(rk))));
-                    }
+                String outdate = row.getCell(8).getStringCellValue();
+                String outtime = row.getCell(9).getStringCellValue();
+                StringBuilder sbout = new StringBuilder(outdate);
+                sbout.append(" ").append(outtime);
+                origin.setExtime(LocalDateTime.parse(sbout.toString(), df));
+
+                Integer tietouId = tietouMapper.selectByInAndOut(origin);
+
+                Integer tietou2019Id = tietouMapper.selectTietou2018ByInAndOut(origin);
+
+                Double distance = row.getCell(19).getNumericCellValue();
+                if (distance < 900) {
+                    distance = distance * 1000;
                 }
 
-                String entime = row.getCell(12).getStringCellValue();
-                origin.setEntime(LocalDateTime.parse(entime, df));
+                int resultTietou = tietouMapper.updateTotalDistance(tietouId, distance);
+                log.info("update tietou set tolldistance = {} where id = {};", distance, tietouId);
 
-                Cell envlpCell = row.getCell(13);
-                if (envlpCell != null && !StringUtils.isEmpty(envlpCell.getStringCellValue())) {
-                    String envlp = envlpCell.getStringCellValue();
-                    origin.setEnvlp(envlp);
-                    if (carCache.get(envlp) != null) {
-                        origin.setEnvlpId(Integer.parseInt(String.valueOf(carCache.get(envlp))));
-                    }
-                }
-
-                origin.setEnvc(Integer.parseInt(row.getCell(14).getStringCellValue()));
-                origin.setEnvt(Integer.parseInt(row.getCell(15).getStringCellValue()));
-
-                Cell ckCell = row.getCell(18);
-                if (ckCell != null && !StringUtils.isEmpty(ckCell.getStringCellValue())) {
-                    String ck = ckCell.getStringCellValue();
-                    origin.setCk(ck);
-                    if (hashOperations.get(ck) != null) {
-                        origin.setCkId(Integer.parseInt(String.valueOf(hashOperations.get(ck))));
-                    }
-                }
-
-                origin.setInv(row.getCell(25).getStringCellValue());
-
-                origin.setTolldistance(Integer.parseInt(row.getCell(27).getStringCellValue()));
-                origin.setTotalweight(Integer.parseInt(row.getCell(29).getStringCellValue()));
-                origin.setWeightLimitation(Integer.parseInt(row.getCell(30).getStringCellValue()));
-                origin.setAxlenum(Integer.parseInt(row.getCell(32).getStringCellValue()));
-                origin.setLastmoney(new BigDecimal(Double.valueOf(row.getCell(34).getStringCellValue())));
-
-
-
-
-
+                int result2019 = tietouMapper.update2019TotalDistance(tietou2019Id, distance);
+                log.info("update tietou_2019 set tolldistance = {} where id = {};", distance, tietou2019Id);
 
             }
             successAmountDto.setSuccess(successAmount);
@@ -1402,24 +1591,8 @@ public class CompareService {
         } catch (IOException e) {
             log.error("{}", e);
             throw new MyException(TipsConsts.SERVER_ERROR);
-        } catch (InvalidFormatException e) {
-            log.error("{}", e);
-            throw new MyException(TipsConsts.SERVER_ERROR);
         }
         return successAmountDto;
-    }
-
-    private void compareAndInsertStation(BoundHashOperations<String, Object, Object> hashOperations, String rk, List<StationDic> dicList) {
-        if (hashOperations.get(rk) == null) {
-            StationDic query = new StationDic();
-            query.setStationName(rk);
-            List<StationDic> stationDicList = stationDicMapper.select(query);
-            if (CollectionUtils.isEmpty(stationDicList)) {
-                StationDic insert = new StationDic();
-                insert.setStationName(rk);
-                dicList.add(insert);
-            }
-        }
     }
 
     public Integer testMycat(Integer routingId) {
@@ -1428,5 +1601,42 @@ public class CompareService {
 
         List<Long> originList = tietouMapper.testListMycat(routingId);
         return originList.size();
+    }
+
+    public void testExecuteShell(Integer taskId) {
+        scriptExecuteService.executeArithmeticScript(taskId);
+    }
+
+    public void testStartCalTask(Integer taskId) {
+        calculateScheduleTask.exectueTask();
+    }
+
+    public void updateTruckCarNo() {
+        List<TietouCarDic> carDicList = tietouCarDicMapper.getTruckNoHuoList();
+        for (TietouCarDic l : carDicList) {
+            String carNo = l.getCarNo();
+            String huoNo = carNo + "_货";
+            TietouCarDic carDic = tietouCarDicMapper.getIdByCarNo(huoNo);
+            if (carDic == null) {
+                tietouCarDicMapper.updateCarNoById(huoNo, l.getId());
+            } else {
+                //如果存在则查询在tietou_2019中是否有记录，有则改成已存在的车牌
+                tietou2019Mapper.updateVlpIdAndVlpByVlpId(carDic.getId(), carDic.getCarNo(), l.getId());
+                //删除当前车辆字典表记录
+                tietouCarDicMapper.updateRegionById(999999, l.getId());
+            }
+            log.info("{}-{} 处理完成！", l.getId(), l.getCarNo());
+        }
+        /*carDicList.stream().forEach(l -> {
+
+        });*/
+    }
+
+    public void testDoPullData() {
+        calculateScheduleTask.doPullCurrentRoadDataFromAll();
+    }
+
+    public void testExecuteImportSqlShell() {
+        scriptExecuteService.testExecuteImportSqlShell();
     }
 }

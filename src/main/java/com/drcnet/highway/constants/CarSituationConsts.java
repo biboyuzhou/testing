@@ -2,6 +2,7 @@ package com.drcnet.highway.constants;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * @Author jack
@@ -12,6 +13,7 @@ public class CarSituationConsts {
 
     public static final Map<String, Integer> SITUATION_MAP;
     public static final Map<String, Integer> CAR_TYPE_MAP;
+    public static final Map<Integer, String> CAR_TYPE_MAP_REV;
 
     static {
         SITUATION_MAP = new HashMap<>();
@@ -41,5 +43,8 @@ public class CarSituationConsts {
         CAR_TYPE_MAP.put("货三", 13);
         CAR_TYPE_MAP.put("货四", 14);
         CAR_TYPE_MAP.put("货五", 15);
+
+        CAR_TYPE_MAP_REV = CAR_TYPE_MAP.entrySet().stream().collect(Collectors.toMap(Map.Entry::getValue, Map.Entry::getKey));
+        CAR_TYPE_MAP_REV.put(-1, "全部车型");
     }
 }

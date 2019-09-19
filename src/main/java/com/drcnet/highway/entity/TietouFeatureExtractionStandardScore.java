@@ -28,6 +28,12 @@ public class TietouFeatureExtractionStandardScore implements Serializable {
 
     private BigDecimal speed;
 
+    @Column(name = "low_speed")
+    private BigDecimal lowSpeed;
+
+    @Column(name = "high_speed")
+    private BigDecimal highSpeed;
+
     @Column(name = "same_car_type")
     private BigDecimal sameCarType;
 

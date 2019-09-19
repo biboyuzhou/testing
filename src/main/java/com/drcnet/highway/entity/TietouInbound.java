@@ -3,11 +3,11 @@ package com.drcnet.highway.entity;
 import com.drcnet.highway.constants.TimeConsts;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
+import org.apache.commons.lang3.StringUtils;
 
+import javax.persistence.*;
 import java.io.Serializable;
 import java.time.LocalDateTime;
-import java.util.Date;
-import javax.persistence.*;
 
 @Table(name = "tietou_inbound")
 @Data
@@ -82,7 +82,17 @@ public class TietouInbound implements Serializable {
     @JsonFormat(pattern = TimeConsts.TIME_FORMAT,timezone = TimeConsts.GMT8)
     private LocalDateTime creatime;
 
+    /**
+     * 换卡确认
+     */
+    @Column(name = "change_card_confirm")
+    private Integer changeCardConfirm;
+
     private static final long serialVersionUID = 1L;
+
+    public boolean isUseful(){
+        return entime != null && !StringUtils.isBlank(envlp) && rkId != null;
+    }
 
     @Override
     public String toString() {
@@ -104,6 +114,7 @@ public class TietouInbound implements Serializable {
         sb.append(", axlenum=").append(axlenum);
         sb.append(", card=").append(card);
         sb.append(", inv=").append(inv);
+        sb.append(", changeCardConfirm=").append(changeCardConfirm);
         sb.append("]");
         return sb.toString();
     }

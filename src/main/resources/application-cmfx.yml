@@ -1,0 +1,32 @@
+spring:
+  datasource:
+    hikari:
+      minimum-idle: 5
+      idle-timeout: 180000
+      maximum-pool-size: 50
+      max-lifetime: 1800000
+      connection-timeout: 30000
+      connection-test-query: SELECT 1
+      pool-name: hikariCP
+      jdbc-url: jdbc:mysql://192.168.101.201/highway_cmfx?useUnicode=true&characterEncoding=utf8&allowMultiQueries=true
+      username: root
+      password: 123456
+    url: jdbc:mysql://192.168.101.201/highway_cmfx?useUnicode=true&characterEncoding=utf8&allowMultiQueries=true
+  redis:
+    host: 192.168.101.204
+    password: 12345678
+    database: 3
+    timeout: 180s
+drcnet:
+  swagger: true
+server:
+  port: 7050
+Local:
+  station-id-list: [283,281,269,200,280,282,285,71,284,159]
+  enterprise-code: 8
+  relation-cache-key: cmfx_station_trip_count
+  risk-map-cache-key: cmfx_station_risk_count
+  previous_tietou_id: previous_tietou_id_8
+  previous_car_id: previous_car_id
+  previous_end_month: previous_end_month_8
+  scriptPath: /disk1/project/highway/cmfx/execute.sh

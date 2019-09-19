@@ -3,10 +3,10 @@ package com.drcnet.highway.dao;
 import com.drcnet.highway.domain.StatisticCount;
 import com.drcnet.highway.entity.TietouFeatureStatistic;
 import com.drcnet.highway.entity.TietouFeatureStatisticGyh;
-import com.drcnet.highway.entity.TietouOrigin;
 import com.drcnet.highway.util.templates.MyMapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 public interface TietouFeatureStatisticMapper extends MyMapper<TietouFeatureStatistic> {
@@ -54,4 +54,53 @@ public interface TietouFeatureStatisticMapper extends MyMapper<TietouFeatureStat
     int updateIsFreeCar(@Param("maxId") Integer maxId, @Param("start") Integer start);
 
     int copyScore2Static();
+
+    /**
+     * 打标完成后执行sql，生成tietou_feature_statistic表的数据
+     */
+    void insertStatisticDataBySql();
+
+    /**
+     * 打标完成后执行sql，重新生成tietou_feature_statistic表的数据之前，先删除tietou_feature_statistic的数据
+     */
+    void truncateStatistic();
+
+    /**
+     * 将白名单数据的分数置为0
+     * @param vlpId
+     */
+    void updateScoreByVlpId(@Param("vlpId") Integer vlpId);
+
+    /**
+     * 删除白名单数据时将异常分数恢复
+     * @param vlpId
+     */
+    void updateScoreFromGyhByVlpId(@Param("vlpId") Integer vlpId);
+
+    /**
+     * 将car_dic表中useFlag为false的车牌在statistics表内设置is_free_car为1
+     */
+    int updateStatisticsFreeCar();
+
+    /**
+     * 根据vlpId查询分数
+     * @param id
+     * @return
+     */
+    BigDecimal getScoreByVlpId(@Param("vlpId") Integer id);
+
+    int insertStatisticsMonthData(@Param("monthTime") int monthTime);
+
+    void truncateStatisticMonth();
+
+    int insertStatisticsByMonth();
+
+    /**
+     * 从铁投总表中拷贝statistic表的分数
+     */
+    int pullStatisticScoreFromAll();
+
+    List<Integer> getTop20VlpId();
+
+    TietouFeatureStatistic selectFromAllByVlpId(@Param("vlpId") Integer vlpId);
 }

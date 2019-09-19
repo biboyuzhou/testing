@@ -1,0 +1,122 @@
+muiltidatasource:
+  second:
+    minimum-idle: 0
+    idle-timeout: 180000
+    maximum-pool-size: 20
+    max-lifetime: 1800000
+    connection-timeout: 30000
+    connection-test-query: SELECT 1
+    pool-name: hikariCP-second
+    username: root
+    password: 123456
+    jdbc-url: jdbc:mysql://192.168.101.201/highway2ndround?useUnicode=true&characterEncoding=utf8&allowMultiQueries=true
+  yl:
+    minimum-idle: 0
+    idle-timeout: 180000
+    maximum-pool-size: 20
+    max-lifetime: 1800000
+    connection-timeout: 30000
+    connection-test-query: SELECT 1
+    pool-name: hikariCP-yl
+    username: root
+    password: 123456
+    jdbc-url: jdbc:mysql://192.168.101.201/highway_yl?useUnicode=true&characterEncoding=utf8&allowMultiQueries=true
+  ndl:
+    minimum-idle: 0
+    idle-timeout: 180000
+    maximum-pool-size: 20
+    max-lifetime: 1800000
+    connection-timeout: 30000
+    connection-test-query: SELECT 1
+    pool-name: hikariCP-ndl
+    username: root
+    password: 123456
+    jdbc-url: jdbc:mysql://192.168.101.201/highway_ndl?useUnicode=true&characterEncoding=utf8&allowMultiQueries=true
+  bgy:
+    minimum-idle: 0
+    idle-timeout: 180000
+    maximum-pool-size: 20
+    max-lifetime: 1800000
+    connection-timeout: 30000
+    connection-test-query: SELECT 1
+    pool-name: hikariCP-bgy
+    username: root
+    password: 123456
+    jdbc-url: jdbc:mysql://192.168.101.201/highway_bgy?useUnicode=true&characterEncoding=utf8&allowMultiQueries=true
+  czl:
+    minimum-idle: 0
+    idle-timeout: 180000
+    maximum-pool-size: 20
+    max-lifetime: 1800000
+    connection-timeout: 30000
+    connection-test-query: SELECT 1
+    pool-name: hikariCP-czl
+    username: root
+    password: 123456
+    jdbc-url: jdbc:mysql://192.168.101.201/highway_czl?useUnicode=true&characterEncoding=utf8&allowMultiQueries=true
+  cmfx:
+    minimum-idle: 0
+    idle-timeout: 180000
+    maximum-pool-size: 20
+    max-lifetime: 1800000
+    connection-timeout: 30000
+    connection-test-query: SELECT 1
+    pool-name: hikariCP-cmfx
+    username: root
+    password: 123456
+    jdbc-url: jdbc:mysql://192.168.101.201/highway_cmfx?useUnicode=true&characterEncoding=utf8&allowMultiQueries=true
+  mn:
+    minimum-idle: 0
+    idle-timeout: 180000
+    maximum-pool-size: 20
+    max-lifetime: 1800000
+    connection-timeout: 30000
+    connection-test-query: SELECT 1
+    pool-name: hikariCP-mn
+    username: root
+    password: 123456
+    jdbc-url: jdbc:mysql://192.168.101.201/highway_mn?useUnicode=true&characterEncoding=utf8&allowMultiQueries=true
+  nwr:
+      minimum-idle: 0
+      idle-timeout: 180000
+      maximum-pool-size: 20
+      max-lifetime: 1800000
+      connection-timeout: 30000
+      connection-test-query: SELECT 1
+      pool-name: hikariCP-nwr
+      username: root
+      password: 123456
+      jdbc-url: jdbc:mysql://192.168.101.201/highway_nwr?useUnicode=true&characterEncoding=utf8&allowMultiQueries=true
+  xg:
+      minimum-idle: 0
+      idle-timeout: 180000
+      maximum-pool-size: 20
+      max-lifetime: 1800000
+      connection-timeout: 30000
+      connection-test-query: SELECT 1
+      pool-name: hikariCP-xg
+      username: root
+      password: 123456
+      jdbc-url: jdbc:mysql://192.168.101.201/highway_xg?useUnicode=true&characterEncoding=utf8&allowMultiQueries=true
+  yx:
+      minimum-idle: 0
+      idle-timeout: 180000
+      maximum-pool-size: 20
+      max-lifetime: 1800000
+      connection-timeout: 30000
+      connection-test-query: SELECT 1
+      pool-name: hikariCP-yx
+      username: root
+      password: 123456
+      jdbc-url: jdbc:mysql://192.168.101.201/highway_yx?useUnicode=true&characterEncoding=utf8&allowMultiQueries=true
+  zl:
+      minimum-idle: 0
+      idle-timeout: 180000
+      maximum-pool-size: 20
+      max-lifetime: 1800000
+      connection-timeout: 30000
+      connection-test-query: SELECT 1
+      pool-name: hikariCP-zl
+      username: root
+      password: 123456
+      jdbc-url: jdbc:mysql://192.168.101.201/highway_zl?useUnicode=true&characterEncoding=utf8&allowMultiQueries=true

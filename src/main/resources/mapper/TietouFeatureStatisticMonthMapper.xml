@@ -36,6 +36,8 @@
           select vlp,vlp_id,car_type
                   ,COUNT( case when same_car_number = 0 then 1 ELSE NULL end) same_car_number
                   ,COUNT( case when speed =1 then 1 ELSE NULL end) speed
+                  ,COUNT( case when low_speed =1 then 1 ELSE NULL end) low_speed
+                  ,COUNT( case when high_speed =1 then 1 ELSE NULL end) high_speed
                   ,COUNT( case when same_car_type = 0 then 1 ELSE NULL end) same_car_type
                   ,COUNT( case when same_car_situation = 0 then 1 ELSE NULL end) same_car_situation
                   ,COUNT( case when short_dis_overweight = 1 then 1 ELSE NULL end) short_dis_overweight

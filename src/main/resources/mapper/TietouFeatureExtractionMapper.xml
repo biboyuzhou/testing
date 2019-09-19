@@ -66,7 +66,7 @@
    (select id from
      (select id from tietou t where id in
           (select id from tietou_feature_extraction where month_time = #{monthTime} and same_car_number = 0)
-                                and EXISTS (select 1 from car_dic where t.vlp_id = id and use_flag = 0) )r)
+                                and EXISTS (select 1 from highway_tietou.car_dic where t.vlp_id = id and use_flag = 0) )r)
   </update>
   <update id="replaceSameCarNumByEnVlpId">
     update tietou_feature_extraction set same_car_number = 1
@@ -74,7 +74,7 @@
           (select id from
             (select id from tietou t where id in
                      (select id from tietou_feature_extraction where month_time = #{monthTime} and same_car_number = 0)
-                 and EXISTS (select 1 from car_dic where t.envlp_id = id and use_flag = 0) )r)
+                 and EXISTS (select 1 from highway_tietou.car_dic where t.envlp_id = id and use_flag = 0) )r)
   </update>
     <select id="listAllRiskOiginalData" resultMap="BaseResultMap">
       select * from ${featureTableName} where score &gt; 0
@@ -100,9 +100,16 @@
   <update id="updateSameCarNumById">
     update tietou_feature_extraction set same_car_number = #{flag} where id = #{id}
   </update>
+    <update id="truncate">
+      truncate table tietou_feature_extraction
+    </update>
 
-  <select id="listExtractionByCarId" resultMap="BaseResultMap">
+    <select id="listExtractionByCarId" resultMap="BaseResultMap">
     select same_route_mark from tietou_feature_extraction where vlp_id = #{carId} and same_route_mark is not null
   </select>
 
+  <insert id="pullExtractionFromAll" >
+    insert into tietou_feature_extraction select * from highway_tietou.tietou_feature_extraction
+      where id in(select id from tietou where id between #{start} and #{end})
+  </insert>
 </mapper>

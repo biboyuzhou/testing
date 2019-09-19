@@ -13,5 +13,8 @@
     <result column="score" jdbcType="INTEGER" property="score" />
     <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
     <result column="use_flag" jdbcType="TINYINT" property="useFlag" />
+    <result column="risk_flag" jdbcType="VARCHAR" property="riskFlag" />
+    <result column="escape_behavior" jdbcType="VARCHAR" property="escapeBehavior" />
+    <result column="description" jdbcType="VARCHAR" property="description" />
   </resultMap>
 </mapper>

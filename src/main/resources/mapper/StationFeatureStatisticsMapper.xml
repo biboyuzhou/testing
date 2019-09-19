@@ -26,12 +26,45 @@
     <result column="h5_speed" jdbcType="DECIMAL" property="h5Speed" />
   </resultMap>
     <select id="listStationSpeedInfo" resultMap="BaseResultMap">
-      select * from station_feature_statistics
+      select * from highway_tietou.station_feature_statistics
       <where>
           1=1
-        <if test="rkId != null"> and rk_id = #{rkId}</if>
         <if test="ckId != null"> and ck_id = #{ckId}</if>
+        <if test="rkId != null"> and rk_id = #{rkId}</if>
       </where>
       order by speed_cheating desc
     </select>
+
+  <update id="truncateData">
+    truncate table highway_tietou.station_feature_statistics;
+  </update>
+
+  <insert id="rebuildTableData">
+    insert into station_feature_statistics (rk_id,ck_id,rk,ck,speed_cheating,total,cheating_rate,avg_speed
+      ,k1_speed,k2_speed,k3_speed,k4_speed,k5_speed,
+      h1_speed,h2_speed,h3_speed,h4_speed,h5_speed)
+      select rk_id,ck_id,rk,ck,speed_cheating,total,speed_cheating/total cheating_rate,avg_speed
+      ,k1_speed,k2_speed,k3_speed,k4_speed,k5_speed,
+      h1_speed,h2_speed,h3_speed,h4_speed,h5_speed
+      from
+      (select rk_id,ck_id,rk,ck
+      ,COUNT(case when tolldistance/TIMESTAMPDIFF(second,entime,extime)*3.6 >180 or tolldistance/TIMESTAMPDIFF(second,entime,extime)*3.6 &lt; 20 then 1 ELSE NULL end) speed_cheating
+      ,COUNT(*) total
+      ,AVG(tolldistance/TIMESTAMPDIFF(second,entime,extime)*3.6) avg_speed
+      ,AVG(case vc when 1 then tolldistance/TIMESTAMPDIFF(second,entime,extime)*3.6 ELSE NULL end) k1_speed
+      ,AVG(case vc when 2 then tolldistance/TIMESTAMPDIFF(second,entime,extime)*3.6 ELSE NULL end) k2_speed
+      ,AVG(case vc when 3 then tolldistance/TIMESTAMPDIFF(second,entime,extime)*3.6 ELSE NULL end) k3_speed
+      ,AVG(case vc when 4 then tolldistance/TIMESTAMPDIFF(second,entime,extime)*3.6 ELSE NULL end) k4_speed
+      ,AVG(case vc when 5 then tolldistance/TIMESTAMPDIFF(second,entime,extime)*3.6 ELSE NULL end) k5_speed
+      ,AVG(case vc when 11 then tolldistance/TIMESTAMPDIFF(second,entime,extime)*3.6 ELSE NULL end) h1_speed
+      ,AVG(case vc when 12 then tolldistance/TIMESTAMPDIFF(second,entime,extime)*3.6 ELSE NULL end) h2_speed
+      ,AVG(case vc when 13 then tolldistance/TIMESTAMPDIFF(second,entime,extime)*3.6 ELSE NULL end) h3_speed
+      ,AVG(case vc when 14 then tolldistance/TIMESTAMPDIFF(second,entime,extime)*3.6 ELSE NULL end) h4_speed
+      ,AVG(case vc when 15 then tolldistance/TIMESTAMPDIFF(second,entime,extime)*3.6 ELSE NULL end) h5_speed
+      from tietou GROUP BY rk_id,ck_id) res ORDER BY speed_cheating desc;
+  </insert>
+
+  <select id="selectByCkIdAndRkId" resultMap="BaseResultMap">
+    select * from highway_tietou.station_feature_statistics where ck_id = #{ckId} and rk_id = #{rkId} limit 1
+  </select>
 </mapper>

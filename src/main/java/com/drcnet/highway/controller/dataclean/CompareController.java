@@ -143,17 +143,17 @@ public class CompareController {
         return Result.ok();
     }
 
-    @ApiOperation("筛选出出口车型与默认车型不一致的车牌")
-    @GetMapping("getSameNumCar")
-    public Result getSameNumCar(){
-        compareService.getSameNumCar();
+    @ApiOperation("处理同一车牌存在客车和货车的场景")
+    @GetMapping("handleSameCar2CarType")
+    public Result handleSameCar2CarType(){
+        compareService.handleSameCar2CarType();
         return Result.ok();
     }
 
-    @ApiOperation("将出口车型与默认车型不一致的车牌写入数据库")
-    @GetMapping("processSameNumCar")
-    public Result processSameNumCar(){
-        compareService.processSameNumCar();
+    @ApiOperation("将tietou_2019中车型与car_dic中车型不一致的数据")
+    @GetMapping("handleDifferentCarTypeFromCarDic")
+    public Result handleDifferentCarTypeFromCarDic(){
+        compareService.handleDifferentCarTypeFromCarDic();
         return Result.ok();
     }
 
@@ -187,6 +187,34 @@ public class CompareController {
     @ApiOperation("从新给的数据里找出新的入口或出口站并插入库")
     public Result testMycat(Integer routingId){
         compareService.testMycat(routingId);
+        return Result.ok();
+    }
+
+    @GetMapping("testExecuteShell")
+    @ApiOperation("从新给的数据里找出新的入口或出口站并插入库")
+    public Result testExecuteShell(Integer taskId){
+        compareService.testExecuteShell(taskId);
+        return Result.ok();
+    }
+
+    @GetMapping("updateTruckCarNo")
+    @ApiOperation("修改车辆字典表中车辆类型为货车但是车牌却没有货字的记录")
+    public Result updateTruckCarNo(){
+        compareService.updateTruckCarNo();
+        return Result.ok();
+    }
+
+    @GetMapping("testDoPullData")
+    @ApiOperation("测试从总表拉取当前路段数据")
+    public Result testDoPullData(){
+        compareService.testDoPullData();
+        return Result.ok();
+    }
+
+    @GetMapping("testExecuteImportSqlShell")
+    @ApiOperation("测试java调用导入数据至DB的脚本")
+    public Result testExecuteImportSqlShell(){
+        compareService.testExecuteImportSqlShell();
         return Result.ok();
     }
 

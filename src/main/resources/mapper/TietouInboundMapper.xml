@@ -20,5 +20,44 @@
     <result column="card" jdbcType="VARCHAR" property="card" />
     <result column="inv" jdbcType="VARCHAR" property="inv" />
     <result column="creatime" jdbcType="TIMESTAMP" property="creatime" />
+    <result column="change_card_confirm" jdbcType="TIMESTAMP" property="changeCardConfirm" />
   </resultMap>
+    <insert id="insertIgnore">
+        insert ignore into tietou_inbound(month_time, entime, rk, rk_id, envlp, envlp_id, envt, envc, inlane, card, inv, axlenum, totalweight, creatime)
+        VALUES (#{monthTime},#{entime},#{rk},#{rkId},#{envlp},#{envlpId},#{envt},#{envc},#{inlane},#{card},#{inv},#{axlenum},#{totalweight},#{creatime})
+    </insert>
+
+    <select id="listChangeCardList" resultType="com.drcnet.highway.dto.response.ChangeCardResponse">
+    select i.id inId,i.card inCard,i.change_card_confirm changeCardConfirm,t.*
+        from (select * from tietou_inbound ti where ti.entime BETWEEN #{beginDate} AND #{endDate}
+                <choose>
+                  <when test="inCard != null">
+                    and ti.card = #{inCard}
+                  </when>
+                </choose>
+                <choose>
+                  <when test="envlpId != null">
+                    and ti.envlp_id = #{envlpId}
+                  </when>
+                </choose>
+                <choose>
+                  <when test="changeCardConfirm != null">
+                    and ti.change_card_confirm = #{changeCardConfirm}
+                  </when>
+                </choose>
+        )i,(select * from tietou where 1 = 1
+                  <choose>
+                      <when test="vlpId != null">
+                          and vlp_id = #{vlpId}
+                      </when>
+                  </choose>
+                  <choose>
+                      <when test="outCard != null">
+                          and card = #{outCard}
+                      </when>
+                  </choose>
+              ) t where i.entime = t.entime and i.rk_id = t.rk_id and i.envlp_id = t.envlp_id and i.card &lt;&gt; t.card
+              order by i.entime desc
+  </select>
+
 </mapper>

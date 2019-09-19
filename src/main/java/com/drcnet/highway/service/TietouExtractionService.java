@@ -2,7 +2,6 @@ package com.drcnet.highway.service;
 
 import com.drcnet.highway.dao.TietouFeatureExtractionMapper;
 import com.drcnet.highway.dao.TietouFeatureExtractionStandardScoreMapper;
-import com.drcnet.highway.dto.response.DiffCarNoStaticDto;
 import com.drcnet.highway.dto.response.SameTimeRangeStaticDto;
 import com.drcnet.highway.entity.TietouFeatureExtraction;
 import com.drcnet.highway.entity.TietouFeatureExtractionStandardScore;
@@ -12,6 +11,7 @@ import com.drcnet.highway.util.templates.BaseService;
 import com.drcnet.highway.util.templates.MyMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.aop.framework.AopContext;
+import org.springframework.context.ApplicationContext;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +36,8 @@ public class TietouExtractionService implements BaseService<TietouFeatureExtract
     private TietouFeatureExtractionMapper thisMapper;
     @Resource
     private TietouFeatureExtractionStandardScoreMapper tietouFeatureExtractionStandardScoreMapper;
+    @Resource
+    private ApplicationContext applicationContext;
 
     @Override
     public MyMapper<TietouFeatureExtraction> getMapper() {
@@ -158,9 +160,25 @@ public class TietouExtractionService implements BaseService<TietouFeatureExtract
         return staticDto;
     }
 
-    public static void main(String[] args) {
-        String s = "dddd";
-        String[] sameRouteMarkArray = s.split(",");
-        System.out.println(2);
+    /**
+     * 拉取extraction data
+     * @param currentTietouId
+     * @param allMaxTietouId
+     */
+    public void pullExtractionDataFromAll(Integer currentTietouId, Integer allMaxTietouId) {
+        long timeMillis = System.currentTimeMillis();
+        Integer maxId = allMaxTietouId;
+        Integer startId = 1;
+        if (currentTietouId != null) {
+            startId = currentTietouId;
+        }
+        int distance = 1000000;
+        for (int i = startId; i <= maxId ; i += distance) {
+            int boundary = i + distance < maxId ? i + distance - 1 : maxId;
+            thisMapper.pullExtractionFromAll(i, boundary);
+            log.info("分批从铁投总表拉取extraction表数据已执行完{}条记录", boundary);
+
+        }
+        log.info("extraction所有记录拉取完成，耗时{}秒", (System.currentTimeMillis() - timeMillis) / 1000);
     }
 }

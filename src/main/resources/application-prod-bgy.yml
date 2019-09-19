@@ -1,0 +1,29 @@
+spring:
+  datasource:
+    hikari:
+      minimum-idle: 5
+      idle-timeout: 180000
+      maximum-pool-size: 50
+      max-lifetime: 1800000
+      connection-timeout: 30000
+      connection-test-query: SELECT 1
+      pool-name: hikariCP
+      jdbc-url: jdbc:mysql:///highway_bgy?useUnicode=true&characterEncoding=utf8&allowMultiQueries=true
+      username: root
+      password: DRCNET_321
+    url: jdbc:mysql:///highway_bgy?useUnicode=true&characterEncoding=utf8&allowMultiQueries=true
+  redis:
+    host: 127.0.0.1
+    password: 12345678
+    database: 3
+server:
+  port: 7030
+Local:
+  station-id-list: [347,509,508,542,512,268,541,532,428,538,517,507,510,481,533,463]
+  enterprise-code: 6
+  relation-cache-key: bgy_station_trip_count
+  risk-map-cache-key: bgy_station_risk_count
+  previous_tietou_id: previous_tietou_id_6
+  previous_car_id: previous_car_id
+  previous_end_month: previous_end_month_6
+  road_name: bgy

@@ -1,15 +1,16 @@
 package com.drcnet.highway.service.dataclean;
 
+import com.drcnet.highway.config.LocalVariableConfig;
 import com.drcnet.highway.constants.CacheKeyConsts;
-import com.drcnet.highway.dao.TietouMapper;
-import com.drcnet.highway.dao.TietouFeatureExtractionMapper;
-import com.drcnet.highway.dao.TietouFeatureStatisticGyhMapper;
+import com.drcnet.highway.dao.*;
 import com.drcnet.highway.dto.CheatingViolationDto;
 import com.drcnet.highway.entity.TietouFeatureExtraction;
-import com.drcnet.highway.entity.TietouOrigin;
 import com.drcnet.highway.entity.TietouFeatureStatisticGyh;
+import com.drcnet.highway.entity.TietouOrigin;
+import com.drcnet.highway.entity.dic.TietouCarDic;
 import com.drcnet.highway.service.TietouSameStationFrequentlyService;
 import com.drcnet.highway.service.TietouService;
+import com.drcnet.highway.util.domain.CarNoUtil;
 import com.drcnet.highway.vo.PageVo;
 import com.github.pagehelper.PageHelper;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +29,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * @Author: penghao
@@ -45,14 +47,20 @@ public class DataCleanService {
     @Resource
     private TietouFeatureStatisticGyhMapper tietouFeatureStatisticGyhMapper;
     @Resource
+    private TietouFeatureStatisticMapper tietouFeatureStatisticMapper;
+    @Resource
     private TietouFeatureExtractionMapper tietouFeatureExtractionMapper;
     @Resource
     private TietouSameStationFrequentlyService tietouSameStationFrequentlyService;
     @Resource
     private RedisTemplate<String, Object> redisTemplate;
-
+    @Resource
+    private TietouCarDicMapper carDicMapper;
     @Resource
     private TietouCleanService tietouCleanService;
+
+    @Resource
+    private LocalVariableConfig localVariableConfig;
 
     public void featureClean() {
         DataCleanService thisService = (DataCleanService) AopContext.currentProxy();
@@ -103,15 +111,12 @@ public class DataCleanService {
         LocalDateTime now = LocalDateTime.now();
         List<TietouFeatureStatisticGyh> scores = data.stream().map(var -> {
             TietouFeatureStatisticGyh tietouFeatureStatisticGyh = new TietouFeatureStatisticGyh(var);
-            tietouFeatureStatisticGyh.setCreateTime(now);
-            tietouFeatureStatisticGyh.setMonthTime(beginMonth);
+//            tietouFeatureStatisticGyh.setCreateTime(now);
+//            tietouFeatureStatisticGyh.setMonthTime(beginMonth);
             return tietouFeatureStatisticGyh;
         }).collect(Collectors.toList());
         tietouFeatureStatisticGyhMapper.insertList(scores);
     }
-
-
-
 
 
     @Async("taskExecutor")
@@ -150,7 +155,6 @@ public class DataCleanService {
         }
         return newIds;
     }
-
 
 
     /**
@@ -254,6 +258,7 @@ public class DataCleanService {
 
     /**
      * 删除缓存数据
+     *
      * @param key
      */
     public void deleteCache(String key) {
@@ -264,10 +269,10 @@ public class DataCleanService {
     /**
      * 删除首页缓存数据
      */
-    @CacheEvict(value="riskProportion",allEntries=true)
+    @CacheEvict(value = "riskProportion", allEntries = true)
     public void deleteFirstPageCache() {
-        redisTemplate.delete(CacheKeyConsts.FIRST_PAGE_MAP_CACHE_KEY);
-        redisTemplate.delete(CacheKeyConsts.FIRST_PAGE_RELATION_CACHE_KEY);
+        redisTemplate.delete(localVariableConfig.getRelationCacheKey());
+        redisTemplate.delete(localVariableConfig.getRiskMapCacheKey());
     }
 
     /**
@@ -277,5 +282,98 @@ public class DataCleanService {
         tietouCleanService.statistic2ndCount();
 
         tietouService.statistic2ndStationRiskCount();
+    }
+
+    public void listUselessCarsWithUseFlagTrue() {
+        BoundHashOperations<String, String, String> hashOperations = redisTemplate.boundHashOps(CacheKeyConsts.USELESS_CAR_USE_FLAG_TRUE);
+        int amount = 0;
+        Integer maxId = carDicMapper.getMaxId();
+        int distance = 50000;
+        for (int i = 0; i <= maxId; i += distance) {
+            List<TietouCarDic> carDics = carDicMapper.selectByPeriod(i, i + distance);
+            for (TietouCarDic carDic : carDics) {
+                Integer id = carDic.getId();
+                String carNo = carDic.getCarNo();
+                if (!CarNoUtil.generateCarUseFlag(carNo.toUpperCase())) {
+                    hashOperations.put(String.valueOf(id), carNo);
+                    ++amount;
+                }
+            }
+        }
+        log.info("导入成功,共:{}条记录", amount);
+    }
+
+    /**
+     * 将车牌的useFlag设置为false
+     */
+    @Transactional
+    public void updateCarDicUseFlagByCache() {
+        BoundHashOperations<String, String, String> hashOperations = redisTemplate.boundHashOps(CacheKeyConsts.USELESS_CAR_USE_FLAG_TRUE);
+        BoundHashOperations<String, String, String> uselessOperations = redisTemplate.boundHashOps(CacheKeyConsts.CAR_CACHE_USELESS);
+        uselessOperations.putAll(hashOperations.entries());
+        Set<String> keys = hashOperations.keys();
+        int size = 0;
+        if (!CollectionUtils.isEmpty(keys)) {
+            size = keys.size();
+            List<Integer> ids = keys.stream().map(Integer::parseInt).collect(Collectors.toList());
+            if (!ids.isEmpty()) {
+                for (int i = 0; i < ids.size(); i += 10000) {
+                    int next = i + 10000;
+                    int bound = next < size ? next : size;
+                    List<Integer> idList = ids.subList(i, bound);
+                    Example example = Example.builder(TietouCarDic.class).build();
+                    example.createCriteria().andIn("id", idList);
+                    TietouCarDic tietouCarDic = new TietouCarDic();
+                    tietouCarDic.setUseFlag(false);
+                    carDicMapper.updateCar2Unuse(idList);
+                }
+            }
+        }
+        log.info("修改成功!共{}条数据", size);
+        redisTemplate.delete(CacheKeyConsts.USELESS_CAR_USE_FLAG_TRUE);
+    }
+
+    /**
+     * 将car_dic表中useFlag为false的车牌在statistics表内设置is_free_car为1
+     */
+    public void updateStatisticsFreeCar() {
+        int affectRows = tietouFeatureStatisticMapper.updateStatisticsFreeCar();
+        log.info("statistic表共修改{}条数据", affectRows);
+    }
+
+    /**
+     * 删除tietou表重复数据
+     */
+    @Transactional
+    public void deleteRepeatData(boolean tietouFlag) {
+        List<String> idStrList = tietouMapper.selectRepeatIds(tietouFlag);
+        if (idStrList.isEmpty()) {
+            log.info("tietou表没有重复数据");
+            return;
+        }
+        int doubleSize = idStrList.size() * 2;
+        int initSize = doubleSize * 2 > 16 ? doubleSize * 2 : 16;
+        List<Integer> ids = new ArrayList<>(initSize);
+        for (String idStr : idStrList) {
+            String[] split = idStr.split(",");
+            List<Integer> idList = Stream.of(split).map(Integer::parseInt).collect(Collectors.toList());
+            ids.addAll(idList.subList(0, idList.size() - 1));
+        }
+        int idSize = ids.size();
+        int affectRows = 0;
+        /*List<String> tables = Arrays.asList("highway2ndround.tietou", "highway_ndl.tietou", "highway_bgy.tietou", "highway_czl.tietou", "highway_cmfx.tietou",
+                "highway_yl.tietou", "highway_yx.tietou", "highway_xg.tietou", "highway_zl.tietou", "highway_nwr.tietou", "highway_mn.tietou");
+        for (String table : tables) {
+            int i = tietouMapper.deleteRepeatByTableIds(table, ids);
+            log.info("{}，共删除{}条", table, i);
+        }*/
+
+        //500条一批删除
+        for (int i = 0; i < idSize; i += 500) {
+            int j = i + 500;
+            int bound = idSize < j ? idSize : j;
+            affectRows += tietouMapper.deleteRepeatByIds(ids.subList(i, bound), tietouFlag);
+        }
+        log.info("铁投表删除重复数据成功,重复数据:{}条，已删除:{}条", idSize, affectRows);
     }
 }

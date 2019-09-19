@@ -2,7 +2,7 @@ package com.drcnet.highway.vo;
 
 import com.drcnet.highway.dto.PeriodAmountDto;
 import com.drcnet.highway.dto.TurnoverStationDto;
-import com.drcnet.highway.entity.TietouFeatureExtractionStandardScore;
+import com.drcnet.highway.entity.TietouFeatureStatisticGyh;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -31,7 +31,7 @@ public class TurnoverVo {
 
     private Integer throughAmount;
 
-    private TietouFeatureExtractionStandardScore violationScore;
+    private TietouFeatureStatisticGyh violationScore;
 
     private List<PeriodAmountDto> periodAmount;
 }

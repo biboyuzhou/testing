@@ -1,21 +1,27 @@
 package com.drcnet.highway.service.dataclean;
 
 import com.drcnet.highway.common.BeanConvertUtil;
-import com.drcnet.highway.config.ConfigConsts;
+import com.drcnet.highway.config.LocalVariableConfig;
 import com.drcnet.highway.constants.CacheKeyConsts;
+import com.drcnet.highway.constants.ConfigConsts;
 import com.drcnet.highway.dao.*;
 import com.drcnet.highway.domain.StatisticCount;
+import com.drcnet.highway.dto.CarNoDto;
 import com.drcnet.highway.dto.response.CommonTypeCountDto;
+import com.drcnet.highway.dto.response.StationRiskCountDto;
 import com.drcnet.highway.dto.response.StationTripCountDto;
 import com.drcnet.highway.entity.*;
 import com.drcnet.highway.entity.dic.StationDic;
 import com.drcnet.highway.entity.dic.TietouCarDic;
 import com.drcnet.highway.enums.CarTypeEnum;
 import com.drcnet.highway.service.TietouSameStationFrequentlyService;
+import com.drcnet.highway.service.TietouStationDicService;
+import com.drcnet.highway.service.dic.TietouCarDicService;
 import com.drcnet.highway.util.EntityUtil;
 import com.drcnet.highway.util.Levenshtein;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.aop.framework.AopContext;
+import org.springframework.context.ApplicationContext;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.data.redis.core.BoundHashOperations;
 import org.springframework.data.redis.core.BoundSetOperations;
@@ -59,6 +65,8 @@ public class TietouCleanService {
     @Resource
     private TietouCarDicMapper carDicMapper;
     @Resource
+    private TietouCarDicService tietouCarDicService;
+    @Resource
     private RedisTemplate<String, Object> redisTemplate;
     @Resource
     private TietouFeatureStatisticMonthMapper tietouFeatureStatisticMonthMapper;
@@ -76,13 +84,23 @@ public class TietouCleanService {
     private StationFeatureStatisticsMapper stationFeatureStatisticsMapper;
     @Resource
     private TaskExecutor taskExecutor;
+    @Resource
+    private LocalVariableConfig localVariableConfig;
+
+    @Resource
+    private ApplicationContext applicationContext;
+    @Resource
+    private Tietou2019Mapper tietou2019Mapper;
+
+    @Resource
+    private TietouStationDicService tietouStationDicService;
 
     private Map<String, Integer> stationMap;
 
     @PostConstruct
     public void initCache() {
-        List<StationDic> stationDics = stationDicMapper.selectAll();
-        stationMap = stationDics.stream().collect(Collectors.toMap(StationDic::getStationName, StationDic::getId));
+        List<StationDic> stationDics = stationDicMapper.selectAllStation();
+        stationMap = new ConcurrentHashMap<>(stationDics.stream().collect(Collectors.toMap(StationDic::getStationName, StationDic::getId)));
     }
 
     /**
@@ -91,10 +109,9 @@ public class TietouCleanService {
     public void updateForeignId() {
         long timeMillis = System.currentTimeMillis();
         TietouCleanService currentProxy = (TietouCleanService) AopContext.currentProxy();
-        Integer maxId = tietouMapper.selectMaxId();
-        int distance = 100000;
+        Integer maxId = tietouMapper.selectCurrentMaxId();
+        int distance = 500000;
         int dis = 10000;
-        BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps("car_cache");
         for (int i = 0; i <= maxId; i += distance) {
             List<TietouOrigin> tietous = tietouMapper.listByIdPeriod(i, i + distance);
             int size = tietous.size();
@@ -103,7 +120,7 @@ public class TietouCleanService {
             for (int j = 0; j < size; j += dis) {
                 int nextJ = j + dis;
                 int boundary = nextJ < size ? nextJ : size;
-                currentProxy.updateIds(tietous.subList(j, boundary), latch, hashOperations);
+                currentProxy.updateIds(tietous.subList(j, boundary), latch, currentProxy);
             }
             try {
                 latch.await();
@@ -119,25 +136,37 @@ public class TietouCleanService {
     }
 
     @Transactional
-    @Async("taskExecutor")
-    public void updateIds(List<TietouOrigin> tietouList, CountDownLatch latch, BoundHashOperations<String, Object, Object> hashOperations) {
+    public void updateIds(List<TietouOrigin> tietouList, CountDownLatch latch) {
         for (TietouOrigin tietou : tietouList) {
-            Integer ckId = stationMap.get(tietou.getCk().trim());
-            Integer rkId = stationMap.get(tietou.getRk().trim());
-            Integer envlpId = (Integer) hashOperations.get(tietou.getEnvlp());
-            Integer vlpId = (Integer) hashOperations.get(tietou.getVlp());
-            tietou.setCkId(ckId);
+            String envlp = tietou.getEnvlp();
+            String vlp = tietou.getVlp();
+            if (envlp != null) {
+                CarNoDto envlpClean = tietouCarDicService.getOrInsertByCarNo(envlp, tietou.getEnvc());
+                tietou.setEnvlpId(envlpClean.getId());
+                tietou.setEnvlp(envlpClean.getCarNo());
+            }
+            if (vlp != null) {
+                CarNoDto vlpClean = tietouCarDicService.getOrInsertByCarNo(vlp, tietou.getVc());
+                tietou.setVlpId(vlpClean.getId());
+                tietou.setVlp(vlpClean.getCarNo());
+            }
+            Integer rkId = tietouStationDicService.getOrInertByName(tietou.getRk());
+            Integer ckId = tietouStationDicService.getOrInertByName(tietou.getCk());
             tietou.setRkId(rkId);
-            tietou.setEnvlpId(envlpId);
-            tietou.setVlpId(vlpId);
-            tietouMapper.updateByPrimaryKeySelective(tietou);
+            tietou.setCkId(ckId);
+            tietouMapper.updateByPrimaryKeyAction(tietou);
         }
         latch.countDown();
     }
 
+    @Async("taskExecutor")
+    public void updateIds(List<TietouOrigin> tietouList, CountDownLatch latch, TietouCleanService currentProxy) {
+        currentProxy.updateIds(tietouList, latch);
+    }
+
+
     /**
      * 将车牌信息以 车牌号-车牌id的方式存入redis
-     *
      */
     public void initCarDic2Cache() {
         String cacheName = "car_cache";
@@ -159,31 +188,33 @@ public class TietouCleanService {
      * 将use_flag=0的车牌以车牌ID-车牌号的方式存入redis中
      */
     public void initUseFlagFalseCarDic2Cache(Integer start) {
-        redisTemplate.delete("car_cache_useless");
-        BoundHashOperations<String, String, String> hashOperations = redisTemplate.boundHashOps("car_cache_useless");
+        redisTemplate.delete(CacheKeyConsts.CAR_CACHE_USELESS);
+        BoundHashOperations<String, String, String> hashOperations = redisTemplate.boundHashOps(CacheKeyConsts.CAR_CACHE_USELESS);
         Integer maxId = carDicMapper.getMaxId();
         int distance = 50000;
         for (int i = start; i <= maxId; i += distance) {
             int end = (i + distance - 1) >= maxId ? maxId : (i + distance - 1);
-            List<TietouCarDic> res = carDicMapper.selectByPeriod(i, end);
+            List<TietouCarDic> res = carDicMapper.selectUselessCarByPeriod(i, end);
             Map<String, String> uselessCar = res.stream().collect(Collectors.toMap(var -> var.getId().toString(), TietouCarDic::getCarNo));
             hashOperations.putAll(uselessCar);
             uselessCar.clear();
-            log.info("useFlag数据已导入redis{}条！", end);
+            log.info("useFlag false数据已导入redis{}条！", end);
         }
     }
 
     /**
      * 将出现次数最多的轴数和车型设置为车牌的轴数
      */
-    public void statisticsAlexNumAndCarType(Integer start) {
-        Integer maxId = carDicMapper.getMaxId();
+    public void statisticsAlexNumAndCarType(Integer start, Integer end) {
+        if (end == null) {
+            end = carDicMapper.getMaxId();
+        }
         int distance = 10000;
         TietouCleanService currentProxy = (TietouCleanService) AopContext.currentProxy();
-        int total = maxId - start;
+        int total = end - start;
         int latchCount = total % distance == 0 ? total / distance : total / distance + 1;
         CountDownLatch latch = new CountDownLatch(latchCount);
-        for (int i = start; i <= maxId; i += distance) {
+        for (int i = start; i <= end; i += distance) {
             currentProxy.statisticsAlexNum(i, distance, latch);
         }
         try {
@@ -200,23 +231,23 @@ public class TietouCleanService {
     public void statisticsAlexNum(int begin, int distance, CountDownLatch latch) {
         List<TietouCarDic> tietouCarDics = carDicMapper.selectByPeriod(begin, begin + distance - 1);
         for (TietouCarDic carDic : tietouCarDics) {
-                Integer vlpId = carDic.getId();
-                Integer carTypeDic = carDic.getCarType();
-                Integer carTypeDicIn = carDic.getCarTypeIn();
-                Integer axlenumDic = carDic.getAxlenum();
-                Integer axlenumInDic = carDic.getAxlenumIn();
-                Integer axleNum = tietouMapper.getMostUseAxleNum(vlpId, 1);
-                Integer carType = tietouMapper.getMostUseCarType(vlpId, 1);
-                Integer axleNumIn = tietouMapper.getMostUseAxleNum(vlpId, 0);
-                Integer carTypeIn = tietouMapper.getMostUseCarType(vlpId, 0);
-                if (!ObjectUtils.nullSafeEquals(axlenumDic, axleNum) || !ObjectUtils.nullSafeEquals(axlenumInDic, axleNumIn)
-                        ||!ObjectUtils.nullSafeEquals(carTypeDic, carType) || !ObjectUtils.nullSafeEquals(carTypeDicIn, carTypeIn)) {
-                    carDic.setAxlenum(axleNum);
-                    carDic.setCarType(carType);
-                    carDic.setAxlenumIn(axleNumIn);
-                    carDic.setCarTypeIn(carTypeIn);
-                    carDicMapper.updateByPrimaryKeySelective(carDic);
-                }
+            Integer vlpId = carDic.getId();
+            Integer carTypeDic = carDic.getCarType();
+            Integer carTypeDicIn = carDic.getCarTypeIn();
+            Integer axlenumDic = carDic.getAxlenum();
+            Integer axlenumInDic = carDic.getAxlenumIn();
+            Integer axleNum = tietouMapper.getMostUseAxleNum(vlpId, 1, null);
+            Integer carType = tietouMapper.getMostUseCarType(vlpId, 1, null);
+            Integer axleNumIn = tietouMapper.getMostUseAxleNum(vlpId, 0, null);
+            Integer carTypeIn = tietouMapper.getMostUseCarType(vlpId, 0, null);
+            if (!ObjectUtils.nullSafeEquals(axlenumDic, axleNum) || !ObjectUtils.nullSafeEquals(axlenumInDic, axleNumIn)
+                    || !ObjectUtils.nullSafeEquals(carTypeDic, carType) || !ObjectUtils.nullSafeEquals(carTypeDicIn, carTypeIn)) {
+                carDic.setAxlenum(axleNum);
+                carDic.setCarType(carType);
+                carDic.setAxlenumIn(axleNumIn);
+                carDic.setCarTypeIn(carTypeIn);
+                carDicMapper.updateAxlenumById(carDic);
+            }
         }
         latch.countDown();
         log.info("{}-{} 区间数据已统计完成，剩余数量:{}", begin, begin + distance - 1, latch.getCount() * 10000);
@@ -343,7 +374,7 @@ public class TietouCleanService {
 
         for (TietouFeatureStatisticMonth statisticMonth : statisticMonths) {
             Integer vlpId = statisticMonth.getVlpId();
-            TietouCarDic tietouCarDic = carDicMapper.selectByPrimaryKey(vlpId);
+            TietouCarDic tietouCarDic = carDicMapper.selectById(vlpId);
             Integer carType = tietouCarDic.getCarType();
             if (carType != null) {
                 if (carType >= 10) {
@@ -420,13 +451,16 @@ public class TietouCleanService {
     /**
      * 根据通行记录原始数据，得出12项特征的flag
      */
-    public void insertExtractionData(Integer start) {
+    public void insertExtractionData(Integer start, Integer maxId) {
         BoundHashOperations<String, String, String> hashOperations = redisTemplate.boundHashOps("car_cache_useless");
         long timeMillis = System.currentTimeMillis();
         TietouCleanService currentProxy = (TietouCleanService) AopContext.currentProxy();
-        Integer maxId = tietouMapper.selectMaxId();
-        int distance = 50000;
-        int dis = 5000;
+        if (maxId == null) {
+            maxId = tietouMapper.selectCurrentMaxId();
+        }
+
+        int distance = 300000;
+        int dis = 500;
         for (int i = start; i <= maxId; i += distance) {
             int end = (i + distance - 1) >= maxId ? maxId : (i + distance - 1);
             List<TietouOrigin> tietous = tietouMapper.listAllByIdPeriod(i, end);
@@ -630,17 +664,15 @@ public class TietouCleanService {
         long timeMillis = System.currentTimeMillis();
         log.info("开始封装map，月份:{}", monthTime);
         Map<Integer, List<TietouOrigin>> tietouMap = record2MapByVlpId(tietouOrigins);
-        //该引用没用了
-        tietouOrigins = null;
         log.info("map封装成功,共{}辆车，耗时{}", tietouMap.size(), (System.currentTimeMillis() - timeMillis) / 1000);
-        BoundHashOperations<String, String, String> hashOperations = redisTemplate.boundHashOps("car_cache_useless");
+        BoundHashOperations<String, String, String> uselessCarOperations = redisTemplate.boundHashOps(CacheKeyConsts.CAR_CACHE_USELESS);
         CountDownLatch latch = new CountDownLatch(tietouMap.size());
-        Set<Integer> idUpdateSets = Collections.newSetFromMap(new ConcurrentHashMap<>(512));
+        Set<Integer> idUpdateSets = Collections.newSetFromMap(new ConcurrentHashMap<>(2048));
         int i = 0;
         for (Map.Entry<Integer, List<TietouOrigin>> entry : tietouMap.entrySet()) {
             Integer vlpId = entry.getKey();
             List<TietouOrigin> value = entry.getValue();
-            dataCleanService.minOutInStatisticsAction(vlpId, value, monthTime, latch, hashOperations, idUpdateSets, dataCleanService);
+            dataCleanService.minOutInStatisticsAction(vlpId, value, monthTime, latch, uselessCarOperations, idUpdateSets, dataCleanService);
             if (++i % 200000 == 0) {
                 log.info("已处理:{}辆车", i);
             }
@@ -657,16 +689,16 @@ public class TietouCleanService {
     /**
      * 5分钟内先出后进
      */
-//    @Transactional
     @Async("taskExecutor")
     public void minOutInStatisticsAction(Integer vlpId, List<TietouOrigin> origins, int monthTime, CountDownLatch latch
-            , BoundHashOperations<String, String, String> hashOperations, Set<Integer> idUpdateSets, TietouCleanService dataCleanService) {
-        //todo
-        if (origins.size() == 1 || hashOperations.hasKey(String.valueOf(vlpId))) {
+            , BoundHashOperations<String, String, String> uselessCarOperations, Set<Integer> idUpdateSets, TietouCleanService dataCleanService) {
+        if (origins.size() == 1 || uselessCarOperations.hasKey(String.valueOf(vlpId))) {
             latch.countDown();
             return;
         }
         Set<Integer> idSet = new HashSet<>();
+        Set<TietouSameStationFrequently> newVal = new HashSet<>();
+        Set<TietouSameStationFrequently> oldVal = new HashSet<>();
         for (TietouOrigin father : origins) {
             Integer fid = father.getId();
             Integer fckId = father.getCkId();
@@ -695,18 +727,27 @@ public class TietouCleanService {
                 //将id放入集合一并更新
                 idSet.add(fid);
                 idSet.add(next.getId());
+                Integer outId = father.getId();
+                Integer inId = next.getId();
                 TietouSameStationFrequently frequently = new TietouSameStationFrequently();
+                frequently.setOutId(outId);
+                frequently.setInId(inId);
+                TietouSameStationFrequently res = tietouSameStationFrequentlyService.selectOne(frequently);
                 frequently.setVlpId(father.getVlpId());
                 frequently.setVlp(father.getVlp());
                 frequently.setMonthTime(monthTime);
-                frequently.setOutId(father.getId());
-                frequently.setInId(next.getId());
                 frequently.setIntervalTime(dis);
                 frequently.setStationId(father.getCkId());
                 frequently.setTollStationName(father.getCk());
                 frequently.setOutTime(father.getExtime());
                 frequently.setInTime(next.getEntime());
-                tietouSameStationFrequentlyService.insertSelective(frequently);
+                tietouSameStationFrequentlyService.setExtField(frequently, outId, inId);
+                if (res == null) {
+                    newVal.add(frequently);
+                } else {
+                    frequently.setId(res.getId());
+                    oldVal.add(frequently);
+                }
             }
         }
         if (!idSet.isEmpty()) {
@@ -719,31 +760,45 @@ public class TietouCleanService {
             }
             if (!ids.isEmpty()) {
                 //将集合内的id标记为先出后进
-                dataCleanService.updateMinOutFlag(ids);
+                dataCleanService.updateMinOutFlag(ids, newVal, oldVal);
             }
         }
-        origins = null;
         latch.countDown();
 
     }
 
+
     @Transactional
-    public void updateMinOutFlag(Collection<Integer> ids) {
+    public void updateMinOutFlag(Collection<Integer> ids, Set<TietouSameStationFrequently> newVal, Set<TietouSameStationFrequently> oldVal) {
         for (Integer id : ids) {
             tietouFeatureExtractionMapper.updateSameCarOutInFlagOne(id);
         }
-
+        for (TietouSameStationFrequently frequently : newVal) {
+            tietouSameStationFrequentlyService.insert(frequently);
+        }
+        for (TietouSameStationFrequently frequently : oldVal) {
+            tietouSameStationFrequentlyService.updateByPrimaryKey(frequently);
+        }
     }
 
     @Async("taskExecutor")
-    @Transactional
     public void extractionFlagAndInsert(List<TietouOrigin> subList, CountDownLatch latch, BoundHashOperations<String, String, String> hashOperations) {
         for (TietouOrigin tietou : subList) {
+            Integer vlpId = tietou.getVlpId();
+            TietouCarDic carDic = carDicMapper.selectById(vlpId);
+            if (carDic == null) {
+                if (vlpId != null) {
+                    log.error("------{}无法查询到该车辆信息！", vlpId);
+                }
+                continue;
+            }
             TietouFeatureExtraction extraction = new TietouFeatureExtraction();
             extraction.setId(tietou.getId());
             extraction.setMonthTime(tietou.getMonthTime());
             extraction.setVlpId(tietou.getVlpId());
             extraction.setVlp(tietou.getVlp());
+            extraction.setRkId(tietou.getRkId());
+            extraction.setCkId(tietou.getCkId());
             //先出后进和通行时间重叠需单独统计
             extraction.setMinOutIn(0);
             extraction.setSameTimeRangeAgain(0);
@@ -760,11 +815,11 @@ public class TietouCleanService {
             //判断speed
             speedJudgement(tietou, extraction);
             //判断载重
-            weightLimitJudgement(tietou, extraction);
+            weightLimitJudgement(tietou, extraction, carDic);
             //设置车型
             carTypeJudgement(tietou, extraction);
             //判断轴数不一致和客车货车类型
-            axlenumJudgement(tietou, extraction);
+            axlenumJudgement(tietou, extraction, carDic);
             try {
                 extractionMapper.insertSelective(extraction);
             } catch (Exception e) {
@@ -803,23 +858,10 @@ public class TietouCleanService {
         }
     }
 
-    private void axlenumJudgement(TietouOrigin tietou, TietouFeatureExtraction extraction) {
-        Integer vlpId = tietou.getVlpId();
+    private void axlenumJudgement(TietouOrigin tietou, TietouFeatureExtraction extraction, TietouCarDic carDic) {
         Integer axlenum = tietou.getAxlenum();
-        TietouCarDic carDic = carDicMapper.selectByPrimaryKey(vlpId);
-        if (carDic == null) {
-            extraction.setDifferentZhou(0);
-            return;
-        }
         Integer dicAxlenum = carDic.getAxlenum();
-        if (dicAxlenum != null && axlenum != 0 && !dicAxlenum.equals(axlenum)) {
-            /*Integer totalCount = tietouMapper.getCountByVlpId(vlpId, null);
-            Integer axlenumCount = tietouMapper.getCountByVlpId(vlpId, axlenum);
-            if (axlenumCount / totalCount > ConfigConsts.AXLENUM_RATE) {
-                extraction.setDifferentZhou(1);
-            } else {
-                extraction.setDifferentZhou(0);
-            }*/
+        if (dicAxlenum != null && axlenum != 0 && axlenum < 10 && !dicAxlenum.equals(axlenum)) {
             extraction.setDifferentZhou(1);
         } else {
             extraction.setDifferentZhou(0);
@@ -869,15 +911,19 @@ public class TietouCleanService {
     /**
      * 统计短途重载和长度轻载
      * 总量大于最大重量80%路程小于30KM为短途重载，总量小于最小重量的120%路程大于100km为长途轻载
-     *
      */
-    private void weightLimitJudgement(TietouOrigin tietou, TietouFeatureExtraction extraction) {
-        Integer vlpId = tietou.getVlpId();
-        TietouCarDic carDic = carDicMapper.selectByPrimaryKey(vlpId);
+    private void weightLimitJudgement(TietouOrigin tietou, TietouFeatureExtraction extraction, TietouCarDic carDic) {
         Integer weightMax = carDic.getWeightMax();
         Integer weightMin = carDic.getWeightMin();
         //如果理论最低载重和最大载重为null或者二者相等
         if (weightMax == null || weightMin == null || weightMax.equals(weightMin)) {
+            extraction.setLongDisLightweight(0);
+            extraction.setShortDisOverweight(0);
+            return;
+        }
+        //最小载重如果大于最大载重的20%，则不算异常
+        BigDecimal rate = new BigDecimal(weightMin).divide(new BigDecimal(weightMax), 1, BigDecimal.ROUND_HALF_UP);
+        if (rate.compareTo(new BigDecimal(0.2)) > 0) {
             extraction.setLongDisLightweight(0);
             extraction.setShortDisOverweight(0);
             return;
@@ -908,7 +954,7 @@ public class TietouCleanService {
         } else {
             extraction.setShortDisOverweight(0);
         }
-        if (totalweight < theoryMin * 1.2 && tolldistance >= ConfigConsts.LONG_DISLIGHT_WEIGHT_MILEAGE) {
+        if (totalweight != 0 && totalweight < theoryMin * 1.2 && tolldistance >= ConfigConsts.LONG_DISLIGHT_WEIGHT_MILEAGE) {
             extraction.setLongDisLightweight(1);
         } else {
             extraction.setLongDisLightweight(0);
@@ -922,44 +968,36 @@ public class TietouCleanService {
         Integer vc = tietou.getVc();
         Integer rkId = tietou.getRkId();
         Integer ckId = tietou.getCkId();
-        if (entime == null || extime == null || entime.isBefore(ConfigConsts.LAST_TIME) || tolldistance == 0) {
+        if (entime == null || extime == null || entime.isBefore(ConfigConsts.LAST_TIME) || tolldistance == 0 || rkId == null || ckId == null) {
             extraction.setSpeed(0);
+            extraction.setLowSpeed(0);
+            extraction.setHighSpeed(0);
             return;
         }
 
         //查询该路段该的平均速度
-        StationFeatureStatistics query = new StationFeatureStatistics();
-        query.setRkId(rkId);
-        query.setCkId(ckId);
-        StationFeatureStatistics statistics = stationFeatureStatisticsMapper.selectOne(query);
-        if (statistics == null) {
+        StationFeatureStatistics statistics = stationFeatureStatisticsMapper.selectByCkIdAndRkId(ckId, rkId);
+        BigDecimal avgSpeedByVc;
+        if (statistics == null || (avgSpeedByVc = statistics.getAvgSpeedByVc(vc)) == null) {
             log.info("未查询到该路段的平均速度，ckId: {}, rkId: {}", ckId, rkId);
-        }
-        BigDecimal avgSpeedByVc = statistics.getAvgSpeedByVc(vc);
-        if (avgSpeedByVc == null) {
+            extraction.setSpeed(0);
+            extraction.setLowSpeed(0);
+            extraction.setHighSpeed(0);
             return;
-            /*TietouCarDic carDic = carDicMapper.selectById(tietou.getVlpId());
-            if (carDic.getCarType() != null) {
-                avgSpeedByVc = statistics.getAvgSpeedByVc(carDic.getCarType());
-            } else {
-                extraction.setLowSpeed(0);
-                extraction.setHighSpeed(0);
-                extraction.setSpeed(0);
-                return;
-            }*/
         }
+
         long seconds = Duration.between(entime, extime).getSeconds();
         double speedPerHour = (double) tolldistance / seconds * 3.6;
-
-        if (speedPerHour > 0 && speedPerHour <= ConfigConsts.MIN_SPEED) {
+        //小于20km/h且小于平均速度20km/h，大于180km/h且大于平均速度50km/h
+        if (speedPerHour > 0 && speedPerHour <= ConfigConsts.MIN_SPEED && speedPerHour <= avgSpeedByVc.doubleValue() - 20) {
             extraction.setLowSpeed(1);
             extraction.setHighSpeed(0);
             extraction.setSpeed(1);
-        }else if (speedPerHour >= ConfigConsts.MAX_SPEED && speedPerHour >= avgSpeedByVc.doubleValue()+50){
+        } else if (speedPerHour >= ConfigConsts.MAX_SPEED && speedPerHour >= avgSpeedByVc.doubleValue() + 50) {
             extraction.setHighSpeed(1);
             extraction.setLowSpeed(0);
             extraction.setSpeed(1);
-        }else {
+        } else {
             extraction.setSpeed(0);
             extraction.setHighSpeed(0);
             extraction.setLowSpeed(0);
@@ -1031,14 +1069,15 @@ public class TietouCleanService {
         }
     }
 
-    private void sameCarNumJudgement(TietouOrigin tietou, TietouFeatureExtraction extraction, BoundHashOperations<String, String, String> hashOperations) {
+    private void sameCarNumJudgement(TietouOrigin tietou, TietouFeatureExtraction extraction, BoundHashOperations<String, String, String> uselessCarOperations) {
         Integer vlpId = tietou.getVlpId();
         Integer envlpId = tietou.getEnvlpId();
         String vlp = tietou.getVlp();
         String envlp = tietou.getEnvlp();
         //判断车牌不一致，如果相似度大于0.7则认为两个车牌相同
-        if (vlpId == null || envlpId == null || vlpId.equals(envlpId) || hashOperations.hasKey(String.valueOf(vlpId))
-                || hashOperations.hasKey(String.valueOf(envlpId)) || Levenshtein.calc(vlp, envlp) > ConfigConsts.SAME_CAR_SCORE) {
+        if (vlpId == null || envlpId == null || vlpId.equals(envlpId) || uselessCarOperations.hasKey(String.valueOf(vlpId))
+                || uselessCarOperations.hasKey(String.valueOf(envlpId))
+                || Levenshtein.calc(vlp.replaceAll(ConfigConsts.HUO_SUFFIX, ""), envlp.replaceAll(ConfigConsts.HUO_SUFFIX, "")) > ConfigConsts.SAME_CAR_SCORE) {
             extraction.setSameCarNumber(1);
         } else {
             extraction.setSameCarNumber(0);
@@ -1109,7 +1148,7 @@ public class TietouCleanService {
         for (TietouFeatureStatistic tietouFeatureStatistic : subList) {
             Integer vlpId = tietouFeatureStatistic.getVlpId();
             Integer id = tietouFeatureStatistic.getId();
-            TietouCarDic tietouCarDic = carDicMapper.selectByPrimaryKey(vlpId);
+            TietouCarDic tietouCarDic = carDicMapper.selectById(vlpId);
             Integer carTypeOrigin = tietouCarDic.getCarType();
             int carType = -1;
             if (carTypeOrigin >= 10) {
@@ -1232,7 +1271,7 @@ public class TietouCleanService {
             Integer tolldistance = tietouOrigin.getTolldistance();
             if (((vc != null && vc > 10) || (envc != null && envc > 10)) && totalweight != null && totalweight > 0) {
                 Integer vlpId = tietouOrigin.getVlpId();
-                TietouCarDic carDic = carDicMapper.selectByPrimaryKey(vlpId);
+                TietouCarDic carDic = carDicMapper.selectById(vlpId);
                 Integer weightMax = carDic.getWeightMax();
                 Integer weightMin = carDic.getWeightMin();
                 TietouFeatureExtraction update = new TietouFeatureExtraction();
@@ -1272,7 +1311,7 @@ public class TietouCleanService {
             String carNo = carDic.getCarNo();
             if (!pattern.matcher(carNo).matches()) {
                 carDic.setUseFlag(false);
-                carDicMapper.updateByPrimaryKeySelective(carDic);
+                carDicMapper.updateCarDic(carDic.getId());
                 log.info("车牌:{}", carNo);
             }
         }
@@ -1317,10 +1356,7 @@ public class TietouCleanService {
             long seconds = Duration.between(entime, extime).getSeconds();
             double speed = tolldistance.doubleValue() / seconds * 3.6;
             //查询该路段该的平均速度
-            StationFeatureStatistics query = new StationFeatureStatistics();
-            query.setRkId(rkId);
-            query.setCkId(ckId);
-            StationFeatureStatistics statistics = stationFeatureStatisticsMapper.selectOne(query);
+            StationFeatureStatistics statistics = stationFeatureStatisticsMapper.selectByCkIdAndRkId(ckId, rkId);
             if (vc == null || (speed > 0 && speed < 20) || statistics == null || statistics.getAvgSpeedByVc(vc) == null) {
                 continue;
             }
@@ -1366,7 +1402,7 @@ public class TietouCleanService {
     public void updateAxlenumAction(List<TietouOrigin> tietouOrigins, CountDownLatch latch) {
         for (TietouOrigin tietouOrigin : tietouOrigins) {
             Integer vlpId = tietouOrigin.getVlpId();
-            TietouCarDic carDic = carDicMapper.selectByPrimaryKey(vlpId);
+            TietouCarDic carDic = carDicMapper.selectById(vlpId);
             if (carDic == null || carDic.getAxlenum() == null) {
                 continue;
             }
@@ -1394,25 +1430,44 @@ public class TietouCleanService {
         });
         hashOperations.putAll(freeCarMap);
     }
+
     /**
      * 更新车牌号一致的蓝牌和黄牌的最大载重和最小载重
      */
-    public void updateMaxAndMinWeight(Integer start) {
+    public void updateMaxAndMinWeight(Integer start, Integer end) {
         BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps("sameCarNo");
         Set<Object> keys = hashOperations.keys();
-        int i = carDicMapper.updateMaxAndMinWeight(keys, null);
-        int i1 = carDicMapper.updateMaxAndMinWeight(null, start);
-        log.info("修改了 {} 条数据",i+i1);
+        //int i = carDicMapper.updateMaxAndMinWeight(keys, null);
+        if (end == null) {
+            end = carDicMapper.getMaxId();
+        }
+        int i1 = carDicMapper.updateMaxAndMinWeight(null, start, end, true);
+        log.info("修改了 {} 条数据", i1);
     }
+
+
+    @Async("taskExecutor")
+    public void massUpdateMaxAndMinWeight(int start, int end, CountDownLatch latch) {
+        Set<Integer> set = new LinkedHashSet<>((int) ((end - start) / 0.7));
+        for (int i = start; i <= end; i++) {
+            set.add(i);
+        }
+        int affectRow = carDicMapper.updateMaxAndMinWeight(set, start, end, true);
+        int affectRow2 = carDicMapper.updateMaxAndMinWeight(set, start, end, false);
+        latch.countDown();
+        log.info("载重已更新:{} - {},更新记录数{},剩余任务数:{}", start, end, affectRow + affectRow2, latch.getCount());
+    }
+
 
     /**
      * 在将每项异常的数量统计完写入static表后，在算法跑分之前需要将is_free_car进行赋值
      * 方便排除免费的内部车辆
+     *
      * @return
      */
     public void updateIsFreeCar(Integer start) {
         long timeMillis = System.currentTimeMillis();
-        Integer maxId = tietouMapper.selectMaxId();
+        Integer maxId = tietouMapper.selectCurrentMaxId();
         try {
             int result = tietouFeatureStatisticMapper.updateIsFreeCar(maxId, start);
             log.info("所有记录已更新完成, 总共更新{}条，耗时{}秒", result, (System.currentTimeMillis() - timeMillis) / 1000);
@@ -1425,6 +1480,7 @@ public class TietouCleanService {
     /**
      * 在算法跑完得分后，将score、cheating、violation、label的值copy到static表
      * 前端车辆异常详情时要用
+     *
      * @return
      */
     public void copyScore2Static() {
@@ -1471,12 +1527,12 @@ public class TietouCleanService {
                     }
 
                     list.add(lineTxt);
-                   if (arrStrings.length > 25) {
-                       towData++;
-                   }
+                    if (arrStrings.length > 25) {
+                        towData++;
+                    }
                     row++;
 
-                    if (row % 1000000 == 0 || row == count ) {
+                    if (row % 1000000 == 0 || row == count) {
                         batchImport(hashOperations, stationHash, list, currentProxy, row);
                     }
 
@@ -1518,7 +1574,7 @@ public class TietouCleanService {
     }
 
     /**
-     *  @param subList
+     * @param subList
      * @param latch
      * @param tietouMapper
      * @param carDicMapper
@@ -1542,7 +1598,7 @@ public class TietouCleanService {
                         TietouCarDic carDic = new TietouCarDic();
                         carDic.setCarNo(vlp);
                         carDic.setUseFlag(true);
-                        carDicMapper.insert(carDic);
+                        carDicMapper.insertNewCar(carDic);
                         origin.setVlpId(carDicMapper.selectByCarNo(vlp).getId());
                         hashOperations.put(vlp, origin.getVlpId());
                     }
@@ -1556,7 +1612,7 @@ public class TietouCleanService {
                         TietouCarDic carDic = new TietouCarDic();
                         carDic.setCarNo(envlp);
                         carDic.setUseFlag(true);
-                        carDicMapper.insert(carDic);
+                        carDicMapper.insertNewCar(carDic);
                         origin.setEnvlpId(carDicMapper.selectByCarNo(envlp).getId());
                         hashOperations.put(envlp, origin.getEnvlpId());
                     }
@@ -1601,27 +1657,35 @@ public class TietouCleanService {
     public List<StationTripCountDto> statistic2ndCount() {
         List<StationTripCountDto> tripCountList = new ArrayList<>(500);
         //二绕站点之间互相的通行记录统计
-        BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps(CacheKeyConsts.FIRST_PAGE_RELATION_CACHE_KEY);
-        if (hashOperations.size() > 100) {
+        BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps(localVariableConfig.getRelationCacheKey());
+        if (hashOperations.size() > 0) {
             List<Object> objectList = hashOperations.values();
-            for(Object o : objectList) {
+            for (Object o : objectList) {
                 StationTripCountDto dto = new StationTripCountDto();
-                LinkedHashMap<String, Object> linkedHashMap = (LinkedHashMap<String, Object>) o;
-                dto.setCkId((Integer) linkedHashMap.get("ckId"));
-                dto.setCkName((String) linkedHashMap.get("ckName"));
-                dto.setRkId((Integer) linkedHashMap.get("rkId"));
-                dto.setRkName((String) linkedHashMap.get("rkName"));
-                dto.setNum((Integer) linkedHashMap.get("num"));
-                dto.setTotalCount((Integer) linkedHashMap.get("totalCount"));
+                if (o instanceof StationTripCountDto) {
+                    dto = (StationTripCountDto) o;
+                } else {
+                    LinkedHashMap<String, Object> linkedHashMap = (LinkedHashMap<String, Object>) o;
+                    dto.setCkId((Integer) linkedHashMap.get("ckId"));
+                    dto.setCkName((String) linkedHashMap.get("ckName"));
+                    dto.setRkId((Integer) linkedHashMap.get("rkId"));
+                    dto.setRkName((String) linkedHashMap.get("rkName"));
+                    dto.setNum((Integer) linkedHashMap.get("num"));
+                    dto.setTotalCount((Integer) linkedHashMap.get("totalCount"));
+                }
                 tripCountList.add(dto);
             }
         } else {
-            List<CommonTypeCountDto> countDtoList = tietouMapper.statisticCkCount();
+            List<Integer> stationIdList = stationDicMapper.getCurrentStationId(localVariableConfig.getEnterpriseCode());
+            if (CollectionUtils.isEmpty(stationIdList)) {
+                return null;
+            }
+            List<CommonTypeCountDto> countDtoList = tietouMapper.secondStatisticCkCount(stationIdList);
             Map<Integer, Integer> stationCountMap = new HashMap<>(countDtoList.size());
             for (CommonTypeCountDto commonTypeCountDto : countDtoList) {
                 stationCountMap.put(commonTypeCountDto.getType(), commonTypeCountDto.getCount());
             }
-            tripCountList = tietouMapper.statistic2ndCount();
+            tripCountList = tietouMapper.secondStatisticTripCount(stationIdList);
             Map<String, StationTripCountDto> map = new HashMap<>(tripCountList.size());
             for (StationTripCountDto tripCount : tripCountList) {
                 tripCount.setTotalCount(stationCountMap.get(tripCount.getCkId()));
@@ -1635,12 +1699,157 @@ public class TietouCleanService {
         return tripCountList;
     }
 
-
     /**
      * 统计站点之间不同车型的平均速度
+     *
      * @param start
      */
     public void statisticsStationAvgSpeed(Integer start) {
 
     }
+
+    /**
+     * 将tietou_2019内的指定高速公路的数据筛选出来到tietou
+     */
+    public void filterSpecifiedData2tietou() {
+
+        long timeMillis = System.currentTimeMillis();
+        TietouCleanService currentProxy = applicationContext.getBean(TietouCleanService.class);
+        List<StationRiskCountDto> stationDics = stationDicMapper.list2ndStation(localVariableConfig.getEnterpriseCode());
+        Map<Integer, String> stationMap = stationDics.stream().collect(Collectors.toMap(StationRiskCountDto::getCkId, StationRiskCountDto::getCkName));
+        Integer maxId = tietou2019Mapper.selectMaxId();
+        int distance = 1000000;
+        int dis = 100000;
+        for (int i = 1; i <= maxId; i += distance) {
+            int end = i + distance < maxId ? i + distance : maxId;
+            List<Tietou2019> tietous = tietou2019Mapper.listAllByperoid(i + 1, end);
+
+            int size = tietous.size();
+            int latchSize = size % dis == 0 ? size / dis : size / dis + 1;
+            CountDownLatch latch = new CountDownLatch(latchSize);
+            for (int j = 0; j < size; j += dis) {
+                int nextJ = j + dis;
+                int boundary = nextJ < size ? nextJ : size;
+                currentProxy.convertOriginalDataByBatch(tietous.subList(j, boundary), latch, stationMap, tietouMapper);
+            }
+            try {
+                latch.await();
+            } catch (InterruptedException e) {
+                log.error("{}", e);
+                Thread.currentThread().interrupt();
+            } finally {
+                log.info("已执行完{}条记录", i + distance);
+            }
+        }
+        log.info("所有记录已更新完成，耗时{}秒", (System.currentTimeMillis() - timeMillis) / 1000);
+    }
+
+    @Async("taskExecutor")
+    public void convertOriginalDataByBatch(List<Tietou2019> subList, CountDownLatch latch, Map<Integer, String> stationMap, TietouMapper tietouMapper) {
+        List<TietouOrigin> tietouList = new ArrayList<>(subList.size());
+        int count = 0;
+        try {
+            for (Tietou2019 record : subList) {
+                Integer ckId = record.getCkId();
+                Integer rkId = record.getRkId();
+                count++;
+                if (StringUtils.isEmpty(record.getEnvlp()) || StringUtils.isEmpty(record.getVlp())) {
+                    continue;
+                }
+                if (ckId == null) {
+                    ckId = tietouStationDicService.getOrInertByName(record.getCk());
+
+                }
+                if (rkId == null) {
+                    rkId = tietouStationDicService.getOrInertByName(record.getRk());
+                }
+
+
+                if (stationMap.containsKey(ckId) || stationMap.containsKey(rkId)) {
+                    TietouOrigin tietou = new TietouOrigin();
+                    EntityUtil.copyNotNullFields(record, tietou);
+                    tietou.setId(null);
+                    if (tietou.getEnvlpId() == null) {
+                        TietouCarDic existCar = carDicMapper.selectByCarNo(tietou.getEnvlp());
+                        if (existCar != null) {
+                            tietou.setEnvlpId(existCar.getId());
+                        }
+                    }
+                    if (tietou.getVlpId() == null) {
+                        TietouCarDic existCar = carDicMapper.selectByCarNo(tietou.getVlp());
+                        if (existCar != null) {
+                            tietou.setVlpId(existCar.getId());
+                        }
+                    }
+                    tietouList.add(tietou);
+                }
+                if (count % 2000 == 0 || count == subList.size()) {
+                    if (!CollectionUtils.isEmpty(tietouList)) {
+                        tietouMapper.insertBatch(tietouList);
+                        tietouList.clear();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("批量处理出错", e);
+        } finally {
+            latch.countDown();
+        }
+    }
+
+    /**
+     * 打标完成后执行sql，生成tietou_feature_statistic表的数据
+     */
+    public void insertStatisticTableData() {
+        tietouFeatureStatisticMapper.insertStatisticDataBySql();
+    }
+
+    /**
+     * 打标完成后执行sql，重新生成tietou_feature_statistic表的数据之前，先删除tietou_feature_statistic的数据
+     */
+    public void truncateStatisticTable() {
+        tietouFeatureStatisticMapper.truncateStatistic();
+    }
+
+    /**
+     * 重新计算时先删除stationStatistic表的数据
+     */
+    public void truncateStationStatisticTable() {
+        stationFeatureStatisticsMapper.truncateData();
+    }
+
+    /**
+     * 重新计算时重新插入station_feature_statistic表的数据
+     */
+    public void insertStationFeatureStatisticData() {
+        stationFeatureStatisticsMapper.rebuildTableData();
+    }
+
+    /**
+     * 将tietou_feature_extraction表内的数据按月份统计到tietou_feature_statistics_month表内
+     */
+    public void insertStatisticsMonthData(int monthTime) {
+        int affect = tietouFeatureStatisticMapper.insertStatisticsMonthData(monthTime);
+        log.info("statistics_month 统计完成,月份:{},记录数:{}", monthTime, affect);
+    }
+
+    /**
+     * 删减表tietou_feature_statistics_month
+     */
+    public void truncateStatisticMonthTable() {
+        tietouFeatureStatisticMapper.truncateStatisticMonth();
+    }
+
+    /**
+     * 统计tietou_feature_statistics_month表，并新增进tietou_feature_statistics表中
+     */
+    public void insertStatisticsByMonth() {
+        int affect = tietouFeatureStatisticMapper.insertStatisticsByMonth();
+        log.info("tietou_feature_statistics表共计新增:{} 条数据", affect);
+    }
+
+    public void truncateExtractionTable() {
+        tietouFeatureExtractionMapper.truncate();
+    }
+
 }

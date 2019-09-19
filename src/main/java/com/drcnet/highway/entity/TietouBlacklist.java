@@ -40,6 +40,23 @@ public class TietouBlacklist implements Serializable {
 
     private BigDecimal score;
 
+    /**
+     * 风险类型
+     */
+    @Column(name = "risk_flag")
+    private String riskFlag;
+
+    /**
+     * 逃费行为
+     */
+    @Column(name = "escape_behavior")
+    private String escapeBehavior;
+
+    /**
+     * 风险描述
+     */
+    private String description;
+
     @JsonFormat(pattern = TimeConsts.TIME_FORMAT,timezone = TimeConsts.GMT8)
     @Column(name = "create_time")
     private LocalDateTime createTime;

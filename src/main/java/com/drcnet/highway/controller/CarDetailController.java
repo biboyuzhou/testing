@@ -1,19 +1,23 @@
 package com.drcnet.highway.controller;
 
+import com.drcnet.highway.constants.enumtype.RiskFlagEnum;
 import com.drcnet.highway.dao.TietouCarDicMapper;
 import com.drcnet.highway.dto.PeriodAmountDto;
 import com.drcnet.highway.dto.RiskMap;
 import com.drcnet.highway.dto.ThroughFrequencyDto;
 import com.drcnet.highway.dto.TurnoverStationDto;
 import com.drcnet.highway.dto.request.CarMonthQueryDto;
+import com.drcnet.highway.dto.request.RiskByRankRequest;
 import com.drcnet.highway.dto.request.RiskInOutDto;
 import com.drcnet.highway.dto.request.StationSpeedQueryDto;
+import com.drcnet.highway.dto.response.CarDetailResponse;
 import com.drcnet.highway.entity.TietouBlacklist;
-import com.drcnet.highway.entity.TietouFeatureExtractionStandardScore;
+import com.drcnet.highway.entity.TietouFeatureStatisticGyh;
 import com.drcnet.highway.entity.dic.TietouCarDic;
 import com.drcnet.highway.enums.BlackStatusEnum;
 import com.drcnet.highway.enums.FeatureCodeEnum;
 import com.drcnet.highway.service.*;
+import com.drcnet.highway.util.DateUtils;
 import com.drcnet.highway.util.EntityUtil;
 import com.drcnet.highway.util.Result;
 import com.drcnet.highway.util.validate.AddValid;
@@ -72,7 +76,7 @@ public class CarDetailController {
             return Result.error("没有该车辆的数据");
         }
         //查询8大违规得分
-        TietouFeatureExtractionStandardScore maxViolationScore = tietouService.getMaxViolationScore(carId, beginMonth);
+        TietouFeatureStatisticGyh maxViolationScore = tietouService.getMaxViolationScore(carId);
         //查询通行次数
         Integer countThrough = tietouService.countThrough(carId, beginMonth);
 
@@ -93,15 +97,62 @@ public class CarDetailController {
             turnoverVo.setType(BlackStatusEnum.WHITE.code);
         }else {
             TietouBlacklist blacklist = tietouBlackListService.queryByCarNoId(carId);
-            if (blacklist!=null){
+            if (blacklist != null) {
                 turnoverVo.setType(BlackStatusEnum.BLACK.code);
-                if (turnoverVo.getViolationScore() == null){
-                    TietouFeatureExtractionStandardScore standardScore = new TietouFeatureExtractionStandardScore();
-                    standardScore.setScore(blacklist.getScore());
-                    turnoverVo.setViolationScore(standardScore);
-                }else {
-                    turnoverVo.getViolationScore().setScore(blacklist.getScore());
+                TietouFeatureStatisticGyh standardScore = new TietouFeatureStatisticGyh();
+                String[] riskArray = blacklist.getRiskFlag().split(",");
+                BigDecimal avg = blacklist.getScore().divide(new BigDecimal(riskArray.length), 2, BigDecimal.ROUND_HALF_UP);
+                for (int i = 0; i < riskArray.length; i++) {
+                    RiskFlagEnum riskFlagEnum = RiskFlagEnum.getEnumByRiskName(riskArray[i]);
+                    if (riskFlagEnum == null) {
+                        continue;
+                    }
+                    switch (riskFlagEnum) {
+                        case LOW_SPEED:
+                            standardScore.setLowSpeed(avg);
+                            break;
+                        case HIGH_SPEED:
+                            standardScore.setHighSpeed(avg);
+                            break;
+                        case DIFF_FLAG_STATION_INFO:
+                            standardScore.setDiffFlagstationInfo(avg);
+                            break;
+                        case SHORT_DIS_OVERWEIGHT:
+                            standardScore.setShortDisOverweight(avg);
+                            break;
+                        case LONG_DIS_LIGHTWEIGHT:
+                            standardScore.setLongDisLightweight(avg);
+                            break;
+                        case SAME_STATION:
+                            standardScore.setSameStation(avg);
+                            break;
+                        case SAME_CAR_TYPE:
+                            standardScore.setSameCarType(avg);
+                            break;
+                        case SAME_CAR_SITUATION:
+                            standardScore.setSameCarSituation(avg);
+                            break;
+                        case DIFFERENT_ZHOU:
+                            standardScore.setDifferentZhou(avg);
+                            break;
+                        case SAME_CAR_NUMBER:
+                            standardScore.setSameCarNumber(avg);
+                            break;
+                        case MIN_OUT_IN:
+                            standardScore.setMinOutIn(avg);
+                            break;
+                        case SAME_TIME_RANGE_AGAIN:
+                            standardScore.setSameTimeRangeAgain(avg);
+                            break;
+                        case FLAG_STATION_LOST:
+                            standardScore.setFlagstationLost(avg);
+                            break;
+                        default:
+                            break;
+                    }
                 }
+                standardScore.setScore(blacklist.getScore());
+                turnoverVo.setViolationScore(standardScore);
             } else {
                 turnoverVo.setType(BlackStatusEnum.NONE.code);
             }
@@ -125,6 +176,19 @@ public class CarDetailController {
     public Result listRiskInOutDetail(@RequestBody @Validated(value = {AddValid.class, PageValid.class}) RiskInOutDto riskInOutDto){
 //        EntityUtil.dateMonthChecked(riskInOutDto.getBeginMonth());
         PageVo pageVo;
+        if (riskInOutDto.getBeginDate() == null) {
+            riskInOutDto.setBeginDate(DateUtils.getFirstDayOfCurrentYear());
+        }
+        if (riskInOutDto.getEndDate() == null) {
+            riskInOutDto.setEndDate(DateUtils.getCurrentDay());
+        }
+        //把前台传入的里程由km转化为m
+        if (riskInOutDto.getMaxDistance() != null) {
+            riskInOutDto.setMaxDistance(riskInOutDto.getMaxDistance() * 1000);
+        }
+        if (riskInOutDto.getMinDistance() != null) {
+            riskInOutDto.setMinDistance(riskInOutDto.getMinDistance() * 1000);
+        }
         if (riskInOutDto.getCode() == FeatureCodeEnum.MIN_OUT_IN.code){
             pageVo = tietouSameStationFrequentlyService.listByQuery(riskInOutDto);
         }else {
@@ -134,9 +198,9 @@ public class CarDetailController {
     }
 
     @ApiOperation("查询车辆风险类型分布-按数量降序")
-    @GetMapping("listRiskByRank")
-    public Result listRiskByRank(@RequestParam Integer carId,@RequestParam Integer beginMonth){
-        List<RiskMap> riskMaps = tietouService.listRiskByRank(carId, beginMonth);
+    @PostMapping("listRiskByRank")
+    public Result listRiskByRank(@RequestBody @Validated(value = {AddValid.class, PageValid.class})RiskByRankRequest riskByRankRequest){
+        List<RiskMap> riskMaps = tietouService.listRiskByRank(riskByRankRequest);
         return Result.ok(riskMaps);
     }
 
@@ -176,18 +240,20 @@ public class CarDetailController {
 
     @ApiOperation("查询车辆的车型分布")
     @GetMapping("listCarTypeDetail")
-    public Result listCarTypeDetail(@RequestParam Integer vlpId){
-        List<PeriodAmountDto> vcDtos = tietouService.listCarTypeDetail(vlpId, 1);
-        List<PeriodAmountDto> envcDtos = tietouService.listCarTypeDetail(vlpId, 2);
+    public Result listCarTypeDetail(@RequestParam Integer vlpId,@RequestParam Integer isCurrent){
+        List<PeriodAmountDto> vcDtos = tietouService.listCarTypeDetail(vlpId, 1,isCurrent);
+        List<PeriodAmountDto> envcDtos = tietouService.listCarTypeDetail(vlpId, 2, isCurrent);
         CarTypeDistributionVo carTypeDistributionVo = new CarTypeDistributionVo();
         carTypeDistributionVo.setInType(envcDtos);
         carTypeDistributionVo.setOutType(vcDtos);
         return Result.ok(carTypeDistributionVo);
     }
 
-    @ApiOperation("获得车辆详细信息")
+    @ApiOperation(value = "根据车辆id获取车辆详细信息", notes = "carId:车辆id")
     @GetMapping("getCarDetails")
-    public Result getCarDetails(@RequestParam Integer id){
-        return Result.ok(tietouCarDicMapper.selectByPrimaryKey(id));
+    public Result getCarDetails(@RequestParam Integer carId){
+
+        CarDetailResponse response = tietouService.getCarDetail(carId);
+        return Result.ok(response);
     }
 }

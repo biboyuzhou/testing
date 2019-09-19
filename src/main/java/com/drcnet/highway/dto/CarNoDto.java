@@ -5,6 +5,9 @@ import lombok.Data;
 
 @Data
 public class CarNoDto extends MonthPageDto {
+
+    private Integer id;
+
     //车牌号
     private String carNo;
 

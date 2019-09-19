@@ -5,6 +5,8 @@ import com.drcnet.highway.constants.TipsConsts;
 import com.drcnet.highway.exception.MyException;
 import com.drcnet.highway.exception.TimeOutException;
 import com.drcnet.highway.util.Result;
+import com.drcnet.response.exception.UnAuthenticationException;
+import com.drcnet.response.exception.UnAuthorizedException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.util.StringUtils;
@@ -22,6 +24,24 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @Slf4j
 public class ControllerAdvice {
 
+
+    /**
+     * 登陆验证的异常
+     */
+    @ExceptionHandler(value = UnAuthenticationException.class)
+    @ResponseStatus(HttpStatus.OK)
+    public Result unAuthenticationExceptionHandler(UnAuthenticationException e) {
+        return Result.error(401, TipsConsts.UNAUTHENTICATION);
+    }
+
+    /**
+     * 权限验证的异常
+     */
+    @ExceptionHandler(value = UnAuthorizedException.class)
+    @ResponseStatus(HttpStatus.OK)
+    public Result unAuthorizedExceptionHandler(UnAuthorizedException e) {
+        return Result.error(409, TipsConsts.UNAUTHORIZED);
+    }
 
     /**
      * BindingResult的异常
@@ -56,7 +76,7 @@ public class ControllerAdvice {
     @ExceptionHandler(value = MissingServletRequestParameterException.class)
     @ResponseStatus(HttpStatus.OK)
     public Result missingServletRequestParameterException(MissingServletRequestParameterException e) {
-        log.error("{}",e);
+        log.error("{}", e);
         return Result.error("请求参数不完整:" + e.getParameterName());
     }
 

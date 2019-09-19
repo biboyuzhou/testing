@@ -23,18 +23,23 @@ import java.util.List;
  */
 @Configuration
 @EnableSwagger2
-@ConditionalOnExpression("${swagger.enable:true}")
+@ConditionalOnExpression("${drcnet.swagger:true}")
 public class SwaggerConfig {
 
     @Bean
     public Docket api() {
-        ParameterBuilder tokenParam = new ParameterBuilder();
         List<Parameter> pars = new ArrayList<>();
-        tokenParam.name("token").description("authentication token")
-                .modelRef(new ModelRef("string")).parameterType("header")
-                .required(false).build(); //header中的ticket参数非必填，传空也可以
-        pars.add(tokenParam.build());
 
+        ParameterBuilder tokenParam = new ParameterBuilder();
+        Parameter tokenBuild = tokenParam.name("token").description("authentication token")
+                .modelRef(new ModelRef("string")).parameterType("header")
+                .required(false).build();
+        ParameterBuilder routeParam = new ParameterBuilder();
+        Parameter routeBuild = routeParam.name("route").description("路段标志")
+                .modelRef(new ModelRef("string")).parameterType("header")
+                .required(false).build();//header中的ticket参数非必填，传空也可以
+        pars.add(tokenBuild);
+        pars.add(routeBuild);
 
         return new Docket(DocumentationType.SWAGGER_2)
                 .apiInfo(new ApiInfoBuilder()
@@ -47,7 +52,7 @@ public class SwaggerConfig {
                 .apis(RequestHandlerSelectors.basePackage("com.drcnet.highway.controller"))
                 .paths(PathSelectors.any())
                 .build()
-//                .globalOperationParameters(pars)
+                .globalOperationParameters(pars)
                 ;
     }
 }

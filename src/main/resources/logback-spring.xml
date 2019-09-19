@@ -11,7 +11,8 @@
     <logger name="org.hibernate.engine.query.HQLQueryPlan" level="ERROR" />
     <logger name="io.swagger.models.parameters.AbstractSerializableParameter" level="ERROR" />
 
-    <property name="log.path" value="../log/highway/logback.log"/>
+    <define name="dirPath" class="com.drcnet.highway.config.LogbackDirConfig"/>
+    <property name="log.path" value="${dirPath}/logback.log"/>
 
     <appender name="file"
               class="ch.qos.logback.core.rolling.RollingFileAppender">
@@ -31,30 +32,9 @@
             <Pattern>%date{yyyy-MM-dd HH:mm:ss.SSS} %-5level[%thread]%logger{56}.%method:%L -%msg%n</Pattern>
         </encoder>
     </appender>
-    <!--     <appender name="Console" class="ch.qos.logback.core.ConsoleAppender">
-            <encoder>
-                <pattern>=%-5level= [%thread %date{MM/dd HH:mm:ss}] %n =>=>=> %msg
-                    \(%class{50}#%method:%line\) %n</pattern>
-            </encoder>
-        </appender> -->
 
-    <!--输出sql语句-->
-    <!-- <Loggers>
-		<Logger name="com.kdkj.dc.dao" additivity="false" level="DEBUG">
-			<AppenderRef ref="sql_log" />
-			<AppenderRef ref="stdout" />
-		</Logger>
-		<Logger name="com.kdkj.dc" additivity="false" level="TRACE">
-			<AppenderRef ref="biz_debug" />
-			<AppenderRef ref="stdout" />
-		</Logger>
-	</Loggers> -->
-    <!-- <logger name="com.sun" level="debug" /> -->
     <root level="info">
         <appender-ref ref="file"/>
         <appender-ref ref="stdout"/>
     </root>
-    <!--<root level="error">
-        <appender-ref ref="stdout"/>
-    </root>-->
 </configuration>

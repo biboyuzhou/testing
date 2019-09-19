@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.drcnet.highway.dao.TrafficStatisticsMapper">
+  <resultMap id="BaseResultMap" type="com.drcnet.highway.entity.TrafficStatistics">
+
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="station_id" jdbcType="INTEGER" property="stationId" />
+    <result column="station_name" jdbcType="VARCHAR" property="stationName" />
+    <result column="bound_type" jdbcType="INTEGER" property="boundType" />
+    <result column="current_day" jdbcType="DATE" property="currentDay" />
+    <result column="amount" jdbcType="INTEGER" property="amount" />
+    <result column="in_amount" jdbcType="INTEGER" property="inAmount" />
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+    <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+    <result column="use_flag" jdbcType="BIT" property="useFlag" />
+  </resultMap>
+    <insert id="insertCkStatisticData">
+      insert into traffic_statistics(station_id,station_name,bound_type,current_day,amount,create_time,use_flag)
+      select ck_id,ck,1,DATE(extime) extime,COUNT(*) amount,NOW(),1 from tietou GROUP BY ck_id,DATE(extime) ORDER BY DATE(extime)
+    </insert>
+  <insert id="insertRkStatisticData">
+    insert into traffic_statistics(station_id,station_name,bound_type,current_day,amount,create_time,use_flag)
+    select rk_id,rk,0,DATE(entime) entime,COUNT(*) amount,NOW(),1 from tietou_inbound GROUP BY rk_id,DATE(entime) ORDER BY DATE(entime)
+  </insert>
+  <select id="selectRkStatisticData" resultMap="BaseResultMap">
+    select rk_id station_id,rk station_name,1 bound_type,DATE(entime) current_day,COUNT(*) in_amount,NOW() create_time,true use_flag
+    from tietou GROUP BY rk_id,DATE(entime) ORDER BY DATE(entime)
+  </select>
+  <delete id="truncate">
+      truncate table traffic_statistics
+    </delete>
+  <select id="listStationTrafficStatistics" resultType="com.drcnet.highway.dto.response.TrafficStatisticsVo">
+    select station_name period,SUM(amount) amount,sum(in_amount) inAmount from traffic_statistics
+    where current_day between #{searchDto.beginDate} and #{searchDto.endDate}
+    and bound_type = #{type}
+    <if test="stationIdList != null and stationIdList.size() > 0">
+      and station_id in
+      <foreach collection="stationIdList" open="(" close=")" separator="," item="item">
+        #{item}
+      </foreach>
+    </if>
+    GROUP BY station_id
+    ORDER BY amount desc
+  </select>
+  <select id="getNewestDay" resultType="java.time.LocalDate">
+    select max(current_day) from traffic_statistics where bound_type = #{type} and current_day &lt;= now()
+    <if test="stationIdList != null and stationIdList.size() > 0">
+      and station_id in
+      <foreach collection="stationIdList" open="(" close=")" separator="," item="item">
+        #{item}
+      </foreach>
+    </if>
+  </select>
+  <select id="listDateTrafficStatistics" resultType="com.drcnet.highway.dto.response.TrafficStatisticsVo">
+    select current_day period,SUM(amount) amount,sum(in_amount) inAmount from traffic_statistics
+    where current_day between #{searchDto.beginDate} and #{searchDto.endDate}
+    and bound_type = #{type}
+    <if test="stationIdList != null and stationIdList.size() > 0">
+      and station_id in
+      <foreach collection="stationIdList" open="(" close=")" separator="," item="item">
+        #{item}
+      </foreach>
+    </if>
+    GROUP BY current_day
+    ORDER BY current_day
+  </select>
+  <select id="selectByUniqueKey" resultMap="BaseResultMap">
+    select * from traffic_statistics where station_id = #{stationId} and current_day = #{currentDay} and bound_type = #{boundType}
+  </select>
+
+</mapper>

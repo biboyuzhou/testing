@@ -68,7 +68,7 @@
 		<!--<table tableName="station_dic">-->
 			<!--<generatedKey column="id" sqlStatement="Mysql" identity="true"/>-->
 		<!--</table>-->
-		<table tableName="tietou_same_station_frequently201811">
+		<table tableName="traffic_statistics">
 			<generatedKey column="id" sqlStatement="Mysql" identity="true"/>
 		</table>
 	</context>

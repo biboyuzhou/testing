@@ -51,4 +51,11 @@
            overflowToDisk="true"
            timeToIdleSeconds="0"
            timeToLiveSeconds="0"/>
+
+    <cache name="listCheatingCarByTime"
+           maxElementsInMemory="1000"
+           eternal="false"
+           overflowToDisk="true"
+           timeToIdleSeconds="0"
+           timeToLiveSeconds="0"/>
 </ehcache>

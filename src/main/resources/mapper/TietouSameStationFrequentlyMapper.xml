@@ -15,8 +15,255 @@
     <result column="interval_time" jdbcType="INTEGER" property="intervalTime" />
     <result column="month_time" jdbcType="INTEGER" property="monthTime" />
     <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+    <result column="in_id" jdbcType="INTEGER" property="inId" />
+    <result column="out_id" jdbcType="INTEGER" property="outId" />
+    <result column="last_distance" jdbcType="INTEGER" property="lastDistance" />
+    <result column="next_distance" jdbcType="INTEGER" property="nextDistance" />
+    <result column="last_weight" jdbcType="INTEGER" property="lastWeight" />
+    <result column="next_weight" jdbcType="INTEGER" property="nextWeight" />
+    <result column="last_in_station_id" jdbcType="INTEGER" property="lastInStationId" />
+    <result column="last_in_station_name" jdbcType="VARCHAR" property="lastInStationName" />
+    <result column="next_out_station_id" jdbcType="INTEGER" property="nextOutStationId" />
+    <result column="next_out_station_name" jdbcType="VARCHAR" property="nextOutStationName" />
+    <result column="last_entime" jdbcType="TIMESTAMP" property="lastEntime" />
+    <result column="next_extime" jdbcType="TIMESTAMP" property="nextExtime" />
   </resultMap>
+    <update id="truncate">
+      truncate table tietou_same_station_frequently
+    </update>
     <select id="hasMonthTime" resultType="java.lang.Integer">
       select 1 from tietou_same_station_frequently where month_time = #{monthTime} LIMIT 1;
     </select>
+
+  <select id="selectByTimeAndDistance" resultMap="BaseResultMap">
+    select * from (select * from tietou_same_station_frequently
+        where vlp_id = #{carId}
+        and out_time BETWEEN #{beginDate} AND #{endDate}
+          <choose>
+            <when test="rkId != null">
+              and station_id = #{rkId}
+            </when>
+          </choose>
+          <choose>
+            <when test="ckId != null">
+              and next_out_station_id = #{ckId}
+            </when>
+          </choose>
+          <choose>
+            <when test="minDistance != null and maxDistance != null">
+              and last_distance between #{minDistance} and #{maxDistance}
+            </when>
+            <when test="minDistance != null and maxDistance == null">
+              and last_distance &gt;= #{minDistance}
+            </when>
+            <when test="minDistance == null and maxDistance != null">
+              and last_distance &lt;= #{maxDistance}
+            </when>
+          </choose>
+          <choose>
+            <when test="minTravelTime != null and maxTravelTime != null">
+              and TIMESTAMPDIFF(MINUTE,last_entime,out_time) between #{minTravelTime} and #{maxTravelTime}
+            </when>
+            <when test="minTravelTime != null and maxTravelTime == null">
+              and TIMESTAMPDIFF(MINUTE,last_entime,out_time) &gt;= #{minTravelTime}
+            </when>
+            <when test="minTravelTime == null and maxTravelTime != null">
+              and TIMESTAMPDIFF(MINUTE,last_entime,out_time) &lt;= #{maxTravelTime}
+            </when>
+          </choose>
+        UNION
+        select * from tietou_same_station_frequently
+        where vlp_id = #{carId}
+        and next_extime BETWEEN #{beginDate} AND #{endDate}
+          <choose>
+            <when test="rkId != null">
+              and last_in_station_id = #{rkId}
+            </when>
+          </choose>
+          <choose>
+            <when test="ckId != null">
+              and station_id = #{ckId}
+            </when>
+          </choose>
+          <choose>
+            <when test="minDistance != null and maxDistance != null">
+              and next_distance between #{minDistance} and #{maxDistance}
+            </when>
+            <when test="minDistance != null and maxDistance == null">
+              and next_distance &gt;= #{minDistance}
+            </when>
+            <when test="minDistance == null and maxDistance != null">
+              and next_distance &lt;= #{maxDistance}
+            </when>
+          </choose>
+          <choose>
+            <when test="minTravelTime != null and maxTravelTime != null">
+              and TIMESTAMPDIFF(MINUTE,in_time,next_extime) between #{minTravelTime} and #{maxTravelTime}
+            </when>
+            <when test="minTravelTime != null and maxTravelTime == null">
+              and TIMESTAMPDIFF(MINUTE,in_time,next_extime) &gt;= #{minTravelTime}
+            </when>
+            <when test="minTravelTime == null and maxTravelTime != null">
+              and TIMESTAMPDIFF(MINUTE,in_time,next_extime) &lt;= #{maxTravelTime}
+            </when>
+          </choose>
+        ) r order by out_time desc
+  </select>
+
+  <select id="selectByTimeAndDistanceFromAll" resultMap="BaseResultMap">
+    select * from (select * from highway_tietou.tietou_same_station_frequently
+    where vlp_id = #{carId}
+    and out_time BETWEEN #{beginDate} AND #{endDate}
+    <choose>
+      <when test="rkId != null">
+        and station_id = #{rkId}
+      </when>
+    </choose>
+    <choose>
+      <when test="ckId != null">
+        and next_out_station_id = #{ckId}
+      </when>
+    </choose>
+    <choose>
+      <when test="minDistance != null and maxDistance != null">
+        and last_distance between #{minDistance} and #{maxDistance}
+      </when>
+      <when test="minDistance != null and maxDistance == null">
+        and last_distance &gt;= #{minDistance}
+      </when>
+      <when test="minDistance == null and maxDistance != null">
+        and last_distance &lt;= #{maxDistance}
+      </when>
+    </choose>
+    <choose>
+      <when test="minTravelTime != null and maxTravelTime != null">
+        and TIMESTAMPDIFF(MINUTE,last_entime,out_time) between #{minTravelTime} and #{maxTravelTime}
+      </when>
+      <when test="minTravelTime != null and maxTravelTime == null">
+        and TIMESTAMPDIFF(MINUTE,last_entime,out_time) &gt;= #{minTravelTime}
+      </when>
+      <when test="minTravelTime == null and maxTravelTime != null">
+        and TIMESTAMPDIFF(MINUTE,last_entime,out_time) &lt;= #{maxTravelTime}
+      </when>
+    </choose>
+    UNION
+    select * from highway_tietou.tietou_same_station_frequently
+    where vlp_id = #{carId}
+    and next_extime BETWEEN #{beginDate} AND #{endDate}
+    <choose>
+      <when test="rkId != null">
+        and last_in_station_id = #{rkId}
+      </when>
+    </choose>
+    <choose>
+      <when test="ckId != null">
+        and station_id = #{ckId}
+      </when>
+    </choose>
+    <choose>
+      <when test="minDistance != null and maxDistance != null">
+        and next_distance between #{minDistance} and #{maxDistance}
+      </when>
+      <when test="minDistance != null and maxDistance == null">
+        and next_distance &gt;= #{minDistance}
+      </when>
+      <when test="minDistance == null and maxDistance != null">
+        and next_distance &lt;= #{maxDistance}
+      </when>
+    </choose>
+    <choose>
+      <when test="minTravelTime != null and maxTravelTime != null">
+        and TIMESTAMPDIFF(MINUTE,in_time,next_extime) between #{minTravelTime} and #{maxTravelTime}
+      </when>
+      <when test="minTravelTime != null and maxTravelTime == null">
+        and TIMESTAMPDIFF(MINUTE,in_time,next_extime) &gt;= #{minTravelTime}
+      </when>
+      <when test="minTravelTime == null and maxTravelTime != null">
+        and TIMESTAMPDIFF(MINUTE,in_time,next_extime) &lt;= #{maxTravelTime}
+      </when>
+    </choose>
+    ) r order by out_time desc
+  </select>
+
+    <insert id="pullSameStationFrequentlyFromAll" >
+      insert into tietou_same_station_frequently select * from highway_tietou.tietou_same_station_frequently where station_id in
+        <foreach collection="list" open="(" close=")" separator="," item="item">
+            #{item}
+        </foreach>
+    </insert>
+
+  <select id="getSameStationCountByTimeAndDistance" resultType="java.lang.Integer">
+    select count(1) from (select id from ${tableName}
+    where vlp_id = #{carId}
+    and out_time BETWEEN #{beginDate} AND #{endDate}
+    <choose>
+      <when test="rkId != null">
+        and station_id = #{rkId}
+      </when>
+    </choose>
+    <choose>
+      <when test="ckId != null">
+        and next_out_station_id = #{ckId}
+      </when>
+    </choose>
+    <choose>
+      <when test="minDistance != null and maxDistance != null">
+        and last_distance between #{minDistance} and #{maxDistance}
+      </when>
+      <when test="minDistance != null and maxDistance == null">
+        and last_distance &gt;= #{minDistance}
+      </when>
+      <when test="minDistance == null and maxDistance != null">
+        and last_distance &lt;= #{maxDistance}
+      </when>
+    </choose>
+    <choose>
+      <when test="minTravelTime != null and maxTravelTime != null">
+        and TIMESTAMPDIFF(MINUTE,last_entime,out_time) between #{minTravelTime} and #{maxTravelTime}
+      </when>
+      <when test="minTravelTime != null and maxTravelTime == null">
+        and TIMESTAMPDIFF(MINUTE,last_entime,out_time) &gt;= #{minTravelTime}
+      </when>
+      <when test="minTravelTime == null and maxTravelTime != null">
+        and TIMESTAMPDIFF(MINUTE,last_entime,out_time) &lt;= #{maxTravelTime}
+      </when>
+    </choose>
+    UNION
+    select id from ${tableName}
+    where vlp_id = #{carId}
+    and next_extime BETWEEN #{beginDate} AND #{endDate}
+    <choose>
+      <when test="rkId != null">
+        and last_in_station_id = #{rkId}
+      </when>
+    </choose>
+    <choose>
+      <when test="ckId != null">
+        and station_id = #{ckId}
+      </when>
+    </choose>
+    <choose>
+      <when test="minDistance != null and maxDistance != null">
+        and next_distance between #{minDistance} and #{maxDistance}
+      </when>
+      <when test="minDistance != null and maxDistance == null">
+        and next_distance &gt;= #{minDistance}
+      </when>
+      <when test="minDistance == null and maxDistance != null">
+        and next_distance &lt;= #{maxDistance}
+      </when>
+    </choose>
+    <choose>
+      <when test="minTravelTime != null and maxTravelTime != null">
+        and TIMESTAMPDIFF(MINUTE,in_time,next_extime) between #{minTravelTime} and #{maxTravelTime}
+      </when>
+      <when test="minTravelTime != null and maxTravelTime == null">
+        and TIMESTAMPDIFF(MINUTE,in_time,next_extime) &gt;= #{minTravelTime}
+      </when>
+      <when test="minTravelTime == null and maxTravelTime != null">
+        and TIMESTAMPDIFF(MINUTE,in_time,next_extime) &lt;= #{maxTravelTime}
+      </when>
+    </choose>
+    ) r
+  </select>
 </mapper>

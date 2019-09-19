@@ -1,8 +1,17 @@
 package com.drcnet.highway;
 
+import com.drcnet.highway.dao.StationDicMapper;
+import com.drcnet.highway.dao.TietouCarDicMapper;
+import com.drcnet.highway.entity.dic.StationDic;
+import com.drcnet.highway.entity.dic.TietouCarDic;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.util.StringUtils;
 
+import javax.annotation.Resource;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -11,7 +20,13 @@ import java.util.stream.Collectors;
  * @CreateTime: 2019/1/14 13:25
  * @Description:
  */
+@RunWith(SpringRunner.class)
+@SpringBootTest
 public class GeneralTest {
+    @Resource
+    private StationDicMapper stationDicMapper;
+    @Resource
+    private TietouCarDicMapper tietouCarDicMapper;
 
     @Test
     public void generalTest(){
@@ -51,6 +66,23 @@ public class GeneralTest {
     public void regExpTest(){
         System.out.println(StringUtils.isEmpty(" ".trim()));
 
+    }
+
+    @Test
+    public void testInsertStation() {
+        /*StationDic stationDic = new StationDic();
+        stationDic.setStationName("测试站");
+        int result = stationDicMapper.insertStationName(stationDic);*/
+
+
+        TietouCarDic newCar = new TietouCarDic();
+        newCar.setId(null);
+        newCar.setCarNo("川AW5699");
+        newCar.setUseFlag(true);
+        newCar.setCreateTime(LocalDateTime.now());
+        tietouCarDicMapper.insertNewCar(newCar);
+        Integer id = newCar.getId();
+        System.out.println(id);
     }
 
 }

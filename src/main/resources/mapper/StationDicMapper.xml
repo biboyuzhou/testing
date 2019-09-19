@@ -9,17 +9,36 @@
     <result column="station_name" jdbcType="VARCHAR" property="stationName" />
     <result column="coordinate" jdbcType="VARCHAR" property="coordinate" />
     <result column="region_id" jdbcType="INTEGER" property="regionId" />
+    <result column="longitude" jdbcType="VARCHAR" property="longitude" />
+    <result column="latitude" jdbcType="VARCHAR" property="latitude" />
+    <result column="mark" jdbcType="INTEGER" property="mark" />
   </resultMap>
     <select id="select2ndRound" resultMap="BaseResultMap">
-      select * from station_dic where mark = 1
+      select * from highway_tietou.station_dic where mark = #{code}
     </select>
 
   <select id="list2ndStation" resultType="com.drcnet.highway.dto.response.StationRiskCountDto">
-    select id ckId,station_name ckName,longitude,latitude from station_dic
-     where id in (341,125,460,39,302,
-	              276,122,123,120,35,
-                  608,468,197,129,226,
-                  134,487,148,91,401,
-                  89,150,34,400)
+    select id ckId,station_name ckName,longitude,latitude from highway_tietou.station_dic
+     where mark = #{code}
+  </select>
+
+  <select id="selectAllStation" resultMap="BaseResultMap">
+    select * from highway_tietou.station_dic
+  </select>
+
+  <select id="selectById" resultMap="BaseResultMap">
+    select * from highway_tietou.station_dic where id = #{id}
+  </select>
+
+  <select id="selectByStationName" resultMap="BaseResultMap">
+    select * from highway_tietou.station_dic where station_name = #{stationName}
+  </select>
+
+  <insert id="insertStationName" useGeneratedKeys="true" keyProperty="id" >
+    insert into highway_tietou.station_dic (station_name) values (#{stationName})
+  </insert>
+
+  <select id="getCurrentStationId" resultType="java.lang.Integer">
+    select id from highway_tietou.station_dic where mark = #{code}
   </select>
 </mapper>

@@ -3,11 +3,13 @@ package com.drcnet.highway.entity;
 import com.drcnet.highway.constants.TimeConsts;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
+import org.apache.commons.lang3.StringUtils;
 
 import javax.persistence.*;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 @Data
 @Table(name = "tietou")
@@ -91,9 +93,32 @@ public class TietouOrigin implements Serializable {
     private Integer speed;
 
     @Transient
+    private Double routeAvgSpeed;
+
+    @Transient
     private StationFeatureStatistics stationFeature;
 
+    /**
+     * 出站时间减进站时间的分钟数
+     */
+    @Transient
+    private BigDecimal minute;
+
+    @Transient
+    private boolean tietouFlag;
+
+    public BigDecimal getMinute() {
+        if (entime != null && extime != null) {
+            long end = extime.toEpochSecond(ZoneOffset.of("+8"));
+            long start = entime.toEpochSecond(ZoneOffset.of("+8"));
+            return new BigDecimal(end - start).divide(new BigDecimal(60), 0, BigDecimal.ROUND_DOWN);
+        }
+        return null;
+    }
+
+    public boolean isUseful(){
+        return entime != null && extime != null && !StringUtils.isBlank(vlp) && rkId != null && ckId != null;
+    }
+
     private static final long serialVersionUID = 1L;
-
-
 }

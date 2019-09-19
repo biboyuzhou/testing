@@ -1,5 +1,7 @@
 package com.drcnet.highway.util;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Optional;
 
 /**
@@ -15,6 +17,13 @@ public class NumberUtil {
 
     public static Double nullFormat(Double num){
         return Optional.ofNullable(num).orElse(0D);
+    }
+
+    public static Double divideThousand(Integer num,int scale){
+        if (num == null){
+            return null;
+        }
+        return BigDecimal.valueOf(num).divide(BigDecimal.valueOf(1000),scale, RoundingMode.HALF_UP).doubleValue();
     }
 
 }

@@ -32,10 +32,14 @@ public class Result<T> {
         return result;
     }
 
-    public static Result error(String message){
-        Result result = new Result(500);
+    public static Result error(int code, String message) {
+        Result result = new Result(code);
         result.message = message;
         return result;
+    }
+
+    public static Result error(String message) {
+        return error(500, message);
     }
 
     private Result(int code) {

@@ -39,4 +39,20 @@ public class TravelRecordQueryDto extends PagingDto {
      * 高速通行卡号
      */
     private String card;
+
+    //-----------------------------------------以下参数在MainController-queryTravelRecordsByTime中用
+    /**
+     * 开始时间
+     */
+    private String startTime;
+
+    /**
+     * 结束时间
+     */
+    private String endTime;
+
+    /**
+     * 结束时间
+     */
+    private Integer carId;
 }

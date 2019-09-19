@@ -1,13 +1,14 @@
 package com.drcnet.highway.service;
 
 import com.drcnet.highway.constants.TipsConsts;
+import com.drcnet.highway.constants.enumtype.RiskFlagEnum;
 import com.drcnet.highway.dao.TietouBlacklistMapper;
 import com.drcnet.highway.dao.TietouCarDicMapper;
 import com.drcnet.highway.dto.request.BlackDetailQueryDto;
 import com.drcnet.highway.dto.request.BlackListInsertDto;
 import com.drcnet.highway.entity.TietouBlacklist;
-import com.drcnet.highway.entity.dic.TietouCarDic;
 import com.drcnet.highway.entity.TietouOrigin;
+import com.drcnet.highway.entity.dic.TietouCarDic;
 import com.drcnet.highway.exception.MyException;
 import com.drcnet.highway.util.EntityUtil;
 import com.drcnet.highway.util.templates.BaseService;
@@ -15,6 +16,7 @@ import com.drcnet.highway.util.templates.MyMapper;
 import com.drcnet.highway.vo.PageVo;
 import com.github.pagehelper.PageHelper;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
@@ -44,9 +46,15 @@ public class TietouBlackListService implements BaseService<TietouBlacklist, Inte
      * 添加或删除一个黑名单
      */
     public void addOrCancelBlackList(BlackListInsertDto dto) {
+        if (!StringUtils.isEmpty(dto.getRiskFlag()) && isNormalRiskFlag(dto.getRiskFlag())) {
+            throw new MyException("传入非法的风险类型值，请检查！");
+        }
+        if(!StringUtils.isEmpty(dto.getDescription()) && dto.getDescription().length() > 500) {
+            throw new MyException("逃费描述信息超长，请检查！");
+        }
         TietouCarDic query = new TietouCarDic();
         query.setCarNo(dto.getCarNo());
-        TietouCarDic tietouCarDic = tietouCarDicMapper.selectOne(query);
+        TietouCarDic tietouCarDic = tietouCarDicMapper.selectByCarNo(dto.getCarNo());
         if (dto.getFlag() == 0 && tietouCarDic == null) {
             throw new MyException("没有该车牌的记录!");
         } else if (tietouCarDic == null) {
@@ -54,7 +62,7 @@ public class TietouBlackListService implements BaseService<TietouBlacklist, Inte
             tietouCarDic.setWhiteFlag(false);
             tietouCarDic.setUseFlag(true);
             tietouCarDic.setCreateTime(LocalDateTime.now());
-            tietouCarDicMapper.insertSelective(tietouCarDic);
+            tietouCarDicMapper.insertNewCar(tietouCarDic);
         }
         TietouBlacklist blackQuery = new TietouBlacklist();
         blackQuery.setCarNoId(tietouCarDic.getId());
@@ -77,7 +85,7 @@ public class TietouBlackListService implements BaseService<TietouBlacklist, Inte
             //如果车牌为白名单，则将其排除出白名单
             if (tietouCarDic.getWhiteFlag()) {
                 tietouCarDic.setWhiteFlag(false);
-                tietouCarDicMapper.updateByPrimaryKeySelective(tietouCarDic);
+                tietouCarDicMapper.moveOutWhiteFlagById(tietouCarDic.getId());
             }
         } else if (dto.getFlag() == 0) {
             if (blacklist == null || !blacklist.getUseFlag()) {
@@ -91,6 +99,22 @@ public class TietouBlackListService implements BaseService<TietouBlacklist, Inte
         } else {
             throw new MyException(TipsConsts.PARAMS_ERROR);
         }
+    }
+
+    private boolean isNormalRiskFlag(String riskFlag) {
+        boolean result = false;
+        if (riskFlag.contains(",")) {
+            String[] flagArray = riskFlag.split(",");
+            for (int i = 0; i < flagArray.length; i++) {
+                if (RiskFlagEnum.getEnumByRiskName(flagArray[0]) == null) {
+                    result = true;
+                    break;
+                }
+            }
+        } else {
+            return RiskFlagEnum.getEnumByRiskName(riskFlag) == null;
+        }
+        return result;
     }
 
     /**

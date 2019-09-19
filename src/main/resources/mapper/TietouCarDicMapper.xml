@@ -17,11 +17,13 @@
     <result column="axlenum_in" jdbcType="INTEGER" property="axlenumIn" />
     <result column="weight_max" jdbcType="INTEGER" property="weightMax" />
     <result column="weight_min" jdbcType="INTEGER" property="weightMin" />
+    <result column="cheating_amount" jdbcType="INTEGER" property="cheatingAmount" />
+    <result column="use_flag" jdbcType="TINYINT" property="useFlag" />
   </resultMap>
     <select id="queryCarNo" resultMap="BaseResultMap">
-      select id,car_no from car_dic
+      select id,car_no from highway_tietou.car_dic
       <where>
-        car_no like #{carNo} and use_flag = true
+        car_no like #{carNo} and (use_flag = true or white_flag = true)
         <if test="carType == 1">
           and car_type in (1,2,3,4,5)
         </if>
@@ -33,29 +35,34 @@
     </select>
 
   <select id="getMaxId" resultType="java.lang.Integer">
-    select MAX(id) from car_dic
+    select MAX(id) from highway_tietou.car_dic
   </select>
+    <select id="getCurrentMaxId" resultType="java.lang.Integer">
+        select MAX(id) from car_dic
+    </select>
   <select id="selectByPeriod" resultMap="BaseResultMap">
-    select * from car_dic
+    select * from highway_tietou.car_dic
     where id between #{begin} and #{end} and use_flag = true
   </select>
   <select id="selectByCarNo" resultMap="BaseResultMap">
-    select id,car_no from car_dic where car_no = #{carNo}
+    select id,car_no from highway_tietou.car_dic where car_no = #{carNo}
   </select>
   <select id="selectByCarNoFromAll" resultMap="BaseResultMap">
-    select id,car_no from car_dic where car_no = #{carNo}
+    select id,car_no,car_type,use_flag from highway_tietou.car_dic where car_no = #{carNo}
   </select>
   <select id="selectAbnormalCarDic" resultMap="BaseResultMap">
-    select id from car_dic where use_flag != 0 and (HEX(car_no) not REGEXP '^(e[4-9][0-9a-f]{4}).*' or car_no like '%警' or SUBSTRING(car_no,2,5) REGEXP '^[^A-Za-z].*'
+    select id from highway_tietou.car_dic where use_flag != 0 and (HEX(car_no) not REGEXP '^(e[4-9][0-9a-f]{4}).*' or car_no like '%警' or SUBSTRING(car_no,2,5) REGEXP '^[^A-Za-z].*'
     or (CHAR_LENGTH(car_no) = 7 and SUBSTRING(car_no,3,5) REGEXP '.*[a-zA-Z].*[a-zA-Z].*[a-zA-Z].*') or car_no rlike '#' or (CHAR_LENGTH(car_no) &lt; 7 or CHAR_LENGTH(car_no) >8))
      limit 5000
   </select>
   <update id="updateCarDic" >
-    update car_dic set use_flag = 0 where id = #{id}
+    update highway_tietou.car_dic set use_flag = 0 where id = #{id}
   </update>
   <update id="updateMaxAndMinWeight">
-      update car_dic c set weight_max = (select max(totalweight) from tietou where vlp_id = c.id and totalweight &gt; 0)
-      ,weight_min = (select min(totalweight) from tietou where vlp_id = c.id and totalweight &gt; 0)
+      update highway_tietou.car_dic c set weight_max = (select max(totalweight) from highway_tietou.tietou where <include refid="vlpFlag"/> = c.id and totalweight &gt; 0)
+      ,weight_min = (select min(totalweight) from highway_tietou.tietou where <include refid="vlpFlag"/> = c.id and totalweight &gt; 0)
+      ,axlenum = (select axlenum from highway_tietou.tietou where <include refid="vlpFlag"/> = c.id and axlenum &gt; 0 group by axlenum order by count(1) desc limit 1)
+      ,car_type = (select <include refid="vcFlag"/> from highway_tietou.tietou where <include refid="vlpFlag"/> = c.id and <include refid="vcFlag"/> &gt; 0 group by <include refid="vcFlag"/> order by count(1) desc limit 1)
       where id
     <choose>
         <when test="keys != null">
@@ -64,9 +71,10 @@
             #{item}
           </foreach>
         </when>
-        <otherwise> &gt;= #{maxId}</otherwise>
+        <otherwise> between #{startId} and #{endId}</otherwise>
       </choose>
-
+#       and use_flag = true
+      and car_type is null
   </update>
   <insert id="insertByBatch"  parameterType="java.util.List">
     insert into tietou_bak (
@@ -83,23 +91,95 @@
   </insert>
 
   <select id="getIdByCarNo" resultMap="BaseResultMap">
-    select id,car_no from car_dic where car_no = #{carNo}
+    select id,car_no from highway_tietou.car_dic where car_no = #{carNo} and use_flag = true
   </select>
     <select id="selectUsefulAndOverLengthCar" resultMap="BaseResultMap">
-      select * from car_dic where char_length(car_no) >7 and use_flag = true
+      select * from highway_tietou.car_dic where char_length(car_no) >7 and use_flag = true
     </select>
     <select id="selectNewRepeatCar" resultMap="BaseResultMap">
-      select * from car_dic where id >= #{maxId}
+      select * from highway_tietou.car_dic where id >= #{maxId}
     </select>
   <select id="selectByIdIn" resultMap="BaseResultMap">
-    select * from car_dic where id in
+    select * from highway_tietou.car_dic where id in
     <foreach collection="keys" item="item" open="(" close=")" separator=",">
       #{item}
     </foreach>
   </select>
 
   <select id="selectById" resultMap="BaseResultMap">
-    select * from car_dic where id = #{id}
+    select * from highway_tietou.car_dic where id = #{id}
   </select>
+  <select id="selectByCarNoIn" resultMap="BaseResultMap">
+    select * from highway_tietou.car_dic where car_no in
+    <foreach collection="carNoList" item="item" separator="," open="(" close=")">
+      #{item}
+    </foreach>
+    and use_flag = true
+  </select>
+  <select id="listHighRiskCar" resultMap="BaseResultMap">
+    select *,(select total from tietou_feature_statistic where vlp_id = c.id)  cheating_amount
+    from highway_tietou.car_dic c where id in (select vlp_id from tietou_feature_statistic where score &gt; #{score})
+    and use_flag = true
+    order by cheating_amount desc
+  </select>
+
+  <select id="selectUselessCarByPeriod" resultMap="BaseResultMap">
+    select * from highway_tietou.car_dic
+    where id between #{begin} and #{end} and use_flag = false
+  </select>
+
+  <update id="updateCarNoById">
+    update highway_tietou.car_dic set car_no = #{carNO} where id = #{id}
+  </update>
+
+  <insert id="insertNewCar" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+    insert ignore into highway_tietou.car_dic (car_no,use_flag,white_flag,create_time,axlenum,car_type,weight_min,weight_max)
+    values (#{carNo}, #{useFlag}, #{whiteFlag}, #{createTime}, #{axlenum}, #{carType}, #{weightMin}, #{weightMax})
+  </insert>
+
+  <update id="updateAxlenumById" >
+    update highway_tietou.car_dic set axlenum = #{axlenum}, car_type = #{carType}, weight_min = #{weightMin}, weight_max = #{weightMax} where id = #{id}
+  </update>
+
+  <update id="moveOutWhiteFlagById">
+    update highway_tietou.car_dic set white_flag = 0 where id = #{id}
+  </update>
+
+  <update id="updateCar2Unuse">
+    update highway_tietou.car_dic set use_flag = 0 where id in
+    <foreach collection="idList" item="item" separator="," open="(" close=")">
+      #{item}
+    </foreach>
+  </update>
+
+  <update id="updateWhiteAndUseFlag">
+    update highway_tietou.car_dic set use_flag = #{useFlag}, white_flag = #{whiteFlag} where id = #{id}
+  </update>
+
+  <select id="selectWhiteFlag" resultMap="BaseResultMap">
+    select * from highway_tietou.car_dic where white_flag = 1
+  </select>
+
+  <select id="getTruckNoHuoList" resultMap="BaseResultMap">
+    select id,car_no from highway_tietou.car_dic where car_type BETWEEN 11 and 15 and use_flag = 1 and car_no not like '%货%'
+  </select>
+
+  <update id="updateRegionById">
+    update highway_tietou.car_dic set region = #{value} where id = #{id}
+  </update>
+
+  <sql id="vlpFlag">
+    <choose>
+        <when test="vlpFlag">vlp_id</when>
+        <otherwise>envlp_id</otherwise>
+    </choose>
+  </sql>
+
+  <sql id="vcFlag">
+    <choose>
+      <when test="vlpFlag">vc</when>
+      <otherwise>envc</otherwise>
+    </choose>
+  </sql>
 
 </mapper>

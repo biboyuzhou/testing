@@ -69,10 +69,12 @@ public class WhiteAndBlackController {
     @ApiOperation(value = "添加或取消黑名单",notes = "flag:1为添加，0为取消")
     public Result addOrCancelBlackList(@RequestBody @Validated(AddValid.class) List<BlackListInsertDto> dtos){
         for (BlackListInsertDto dto : dtos) {
-            if (StringUtils.isEmpty(dto.getCarNo()))
+            if (StringUtils.isEmpty(dto.getCarNo())) {
                 return Result.error("车牌号不能为空");
-            if (dto.getFlag() == 1 && (dto.getCheating() == null || dto.getScore()==null||dto.getViolation()==null))
-                return Result.error("三项得分不能为空");
+            }
+            if (dto.getFlag() == 1 && dto.getScore()==null) {
+                return Result.error("风险得分不能为空");
+            }
             tietouBlackListService.addOrCancelBlackList(dto);
         }
         return Result.ok();
