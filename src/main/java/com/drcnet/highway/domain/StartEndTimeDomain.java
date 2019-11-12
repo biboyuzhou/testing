@@ -16,6 +16,7 @@ public class StartEndTimeDomain {
 
     /**
      * 进站时间
+     * @DateTimeFormat(pattern = TimeConsts.TIME_FORMAT)  添加该注解，可以对前端传入的数据进行格式化
      */
     @JsonFormat(pattern = TimeConsts.TIME_FORMAT,timezone = TimeConsts.GMT8)
     private LocalDateTime maxTime;

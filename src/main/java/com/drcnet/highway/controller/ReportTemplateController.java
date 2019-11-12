@@ -2,12 +2,14 @@ package com.drcnet.highway.controller;
 
 import com.drcnet.highway.constants.ModuleConsts;
 import com.drcnet.highway.constants.TipsConsts;
+import com.drcnet.highway.constants.enumtype.YesNoEnum;
 import com.drcnet.highway.dao.TietouCarDicMapper;
 import com.drcnet.highway.dto.request.CheatingListTimeSearchDto;
 import com.drcnet.highway.entity.TietouFeatureStatisticGyh;
 import com.drcnet.highway.exception.MyException;
 import com.drcnet.highway.service.ReportTemplateService;
 import com.drcnet.highway.service.TietouScoreGyhService;
+import com.drcnet.highway.service.TietouStatisticsService;
 import com.drcnet.highway.util.DownloadUtil;
 import com.drcnet.highway.util.Result;
 import com.drcnet.highway.util.validate.QueryValid;
@@ -49,10 +51,12 @@ public class ReportTemplateController {
     private TietouCarDicMapper carDicMapper;
     @Resource
     private TietouScoreGyhService tietouScoreGyhService;
+    @Resource
+    private TietouStatisticsService tietouStatisticsService;
 
-//    @GetMapping("buildReport")
+    //    @GetMapping("buildReport")
 //    @ApiOperation("生成异常车辆报告")
-    public Result buildReport(){
+    public Result buildReport() {
 //        List<String> carNoList = Arrays.asList("川AAQ119_货", "渝F878Q7", "川A72MC1", "川AM28D4","皖K66P98","川A7HQ44","川U21540","川A6773U_货");
 //        List<TietouCarDic> carDics = carDicMapper.selectByCarNoIn(carNoList);
         //查询高风险车牌(大于80分)
@@ -72,33 +76,46 @@ public class ReportTemplateController {
     @ApiOperation(value = "下载异常车辆报告")
     @PermissionCheck(ModuleConsts.RISK_CAR)
     @ParamToken
-    public ResponseEntity<byte[]> downloadReport(@Validated({QueryValid.class}) CheatingListTimeSearchDto dto){
+    public ResponseEntity<byte[]> downloadReport(@Validated({QueryValid.class}) CheatingListTimeSearchDto dto) {
+
+        YesNoEnum isCurrent = YesNoEnum.YES;
+        if (dto.getCurrent() != null && dto.getCurrent() == 0){
+            isCurrent = YesNoEnum.NO;
+        }
+
         int pageSize = 0;
         if (dto.getRiskFlag() == null || dto.getRiskFlag() != 0) {
             pageSize = 200;
         }
-        if (dto.getLimit() != null){
+        if (dto.getLimit() != null) {
             pageSize = dto.getLimit();
+        }
+
+        dto.setPageNum(1);
+        dto.setPageSize(pageSize);
+        PageVo<TietouFeatureStatisticGyh> pageVo = tietouScoreGyhService.listCheatingCarByTime(dto);
+        List<Integer> idList = pageVo.getData().stream().map(TietouFeatureStatisticGyh::getVlpId).collect(Collectors.toList());
+        if (CollectionUtils.isEmpty(idList)) {
+            throw new MyException("没有记录");
         }
         String beginDate = "2019-01-01";
         String endDate = "2019-08-31";
         dto.setBeginDate(beginDate);
         dto.setEndDate(endDate);
-        dto.setPageNum(1);
-        dto.setPageSize(30);
-        PageVo<TietouFeatureStatisticGyh> pageVo = tietouScoreGyhService.listCheatingCarByTime(dto);
-        List<Integer> idList = pageVo.getData().stream().map(TietouFeatureStatisticGyh::getVlpId).collect(Collectors.toList());
-        if (CollectionUtils.isEmpty(idList)){
-            throw new MyException("没有记录");
+
+        //过滤一下车辆ID，找出在当前路段有异常行为的车辆ID
+        if (isCurrent == YesNoEnum.YES){
+            idList = tietouStatisticsService.filterCurrentCarNoId(idList);
         }
-        XWPFDocument document = reportTemplateService.buildReport(idList,"车辆报告",dto);
-        if (document != null){
-            try (ByteArrayOutputStream bos = new ByteArrayOutputStream()){
+
+        XWPFDocument document = reportTemplateService.buildReport(idList, "车辆报告", dto,isCurrent);
+        if (document != null) {
+            try (ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
                 document.write(bos);
                 byte[] bytes = bos.toByteArray();
-                return DownloadUtil.download(bytes,"车辆报告.docx");
+                return DownloadUtil.download(bytes, "车辆报告.docx");
             } catch (IOException e) {
-                log.error("{}",e);
+                log.error("{}", e);
             }
         }
         return ResponseEntity.ok(TipsConsts.SERVER_ERROR.getBytes(Charset.forName("utf8")));

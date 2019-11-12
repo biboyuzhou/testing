@@ -23,6 +23,7 @@ import com.drcnet.usermodule.permission.UserContext;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -38,6 +39,10 @@ import javax.annotation.Resource;
 @Api(tags = "用户接口")
 @Slf4j
 public class UserController {
+
+    @Value("${drcnet.security-switch}")
+    private Boolean securitySwitch;
+
 
     @Resource
     private UserService userService;
@@ -110,9 +115,12 @@ public class UserController {
     @ApiOperation(value = "登陆",notes = "roleId:1管理员，2数据管理员，3普通用户")
     @PostMapping("login")
     public Result login(@RequestBody @Validated(AddValid.class) LoginDto loginDto){
-        String token = SecurityUtil.login(loginDto.getUsername(), loginDto.getPassword());
-        User user = (User) UserContext.get();
-        return Result.ok(new LoginResponseDto(token,user.getRoleId(),user.getPermissions()));
+        if (securitySwitch){
+            String token = SecurityUtil.login(loginDto.getUsername(), loginDto.getPassword());
+            User user = (User) UserContext.get();
+            return Result.ok(new LoginResponseDto(token,user.getRoleId(),user.getPermissions()));
+        }
+        return Result.ok(new LoginResponseDto());
     }
 
     @ApiOperation("注销")

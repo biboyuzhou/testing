@@ -372,89 +372,94 @@
         order by t.extime desc
     </select>
     <select id="getRiskAmount" resultType="com.drcnet.highway.dto.RiskAmountDto">
-        select COUNT(diff_flagstation_info) diffFlagstationInfo,COUNT(short_dis_overweight) shortDisOverweight
-        ,COUNT(long_dis_lightweight) longDisLightweight,COUNT(speed) speed, COUNT(same_station) sameStation
-        ,COUNT(same_car_type) sameCarType,COUNT(same_car_situation) sameCarSituation
-        ,COUNT(different_zhou) differentZhou,COUNT(same_car_number) sameCarNumber
-        ,COUNT(flagstation_lost) flagstationLost
-        ,0 minOutIn
-        ,COUNT(same_time_range_again) sameTimeRangeAgain, count(high_speed) highSpeed, count(low_speed) lowSpeed
-        from
-        (select
-        CASE WHEN tfe.diff_flagstation_info = 1 THEN 1 ELSE NULL end diff_flagstation_info,
-        CASE WHEN tfe.short_dis_overweight = 1 THEN 1 ELSE NULL end short_dis_overweight,
-        CASE WHEN tfe.long_dis_lightweight = 1 THEN 1 ELSE NULL end long_dis_lightweight,
-        CASE WHEN tfe.speed = 1 THEN 1 ELSE NULL end speed,
-        CASE WHEN tfe.same_station = 1 THEN 1 ELSE NULL end same_station,
-        CASE WHEN tfe.same_car_type = 0 THEN 1 ELSE NULL end same_car_type,
-        CASE WHEN tfe.same_car_situation = 0 THEN 1 ELSE NULL end same_car_situation,
-        CASE WHEN tfe.different_zhou = 1 THEN 1 ELSE NULL end different_zhou,
-        CASE WHEN tfe.same_car_number = 0 THEN 1 ELSE NULL end same_car_number,
-        CASE WHEN tfe.flagstation_lost = 1 THEN 1 ELSE NULL end flagstation_lost,
-        CASE WHEN tfe.same_time_range_again = 1 THEN 1 ELSE NULL end same_time_range_again,
-        CASE WHEN tfe.high_speed = 1 THEN 1 ELSE NULL end high_speed,
-        CASE WHEN tfe.low_speed = 1 THEN 1 ELSE NULL end low_speed
-        from tietou t LEFT JOIN tietou_feature_extraction tfe on t.id = tfe.id
-        WHERE t.vlp_id = #{carId} and t.extime BETWEEN #{beginDate} AND #{endDate}
-        <choose>
-            <when test="rkId != null">
-                and t.rk_id = #{rkId}
-            </when>
-        </choose>
-        <choose>
-            <when test="ckId != null">
-                and t.ck_id = #{ckId}
-            </when>
-        </choose>
-        <choose>
-            <when test="minDistance != null and maxDistance != null">
-                and t.tolldistance between #{minDistance} and #{maxDistance}
-            </when>
-            <when test="minDistance != null and maxDistance == null">
-                and t.tolldistance &gt;= #{minDistance}
-            </when>
-            <when test="minDistance == null and maxDistance != null">
-                and t.tolldistance &lt;= #{maxDistance}
-            </when>
-        </choose>
-        <choose>
-            <when test="minTravelTime != null and maxTravelTime != null">
-                and TIMESTAMPDIFF(MINUTE,t.entime,t.extime) between #{minTravelTime} and #{maxTravelTime}
-            </when>
-            <when test="minTravelTime != null and maxTravelTime == null">
-                and TIMESTAMPDIFF(MINUTE,t.entime,t.extime) &gt;= #{minTravelTime}
-            </when>
-            <when test="minTravelTime == null and maxTravelTime != null">
-                and TIMESTAMPDIFF(MINUTE,t.entime,t.extime) &lt;= #{maxTravelTime}
-            </when>
-        </choose>
-        ) res
+        select  sum(tfe.diff_flagstation_info) diffFlagstationInfo,
+                sum(tfe.short_dis_overweight) shortDisOverweight,
+                sum(tfe.long_dis_lightweight) longDisLightweight,
+                sum(tfe.speed) speed,
+                sum(tfe.same_station) sameStation,
+                sum(CASE WHEN tfe.same_car_type = 0 THEN 1 ELSE 0 END) sameCarType,
+                sum(CASE WHEN tfe.same_car_situation = 0 THEN 1 ELSE 0 END) sameCarSituation,
+                sum(CASE WHEN tfe.same_car_number = 0 THEN 1 ELSE 0 END) sameCarNumber,
+                sum(tfe.different_zhou) differentZhou,
+                sum(tfe.flagstation_lost) flagstationLost,
+                0 minOutIn,
+                sum(tfe.same_time_range_again) sameTimeRangeAgain,
+                sum(tfe.high_speed) highSpeed,
+                sum(tfe.low_speed) lowSpeed
+        from tietou_feature_extraction tfe LEFT JOIN tietou_2019 t on tfe.id = t.id
+        WHERE tfe.vlp_id = #{carId}
+            <choose>
+                <when test="beginDate != null and endDate != null">
+                    and t.extime BETWEEN #{beginDate} AND #{endDate}
+                </when>
+                <when test="beginDate != null and endDate == null">
+                    and t.extime &gt;= #{beginDate}
+                </when>
+                <when test="beginDate == null and endDate != null">
+                    and t.extime &lt;= #{endDate}
+                </when>
+            </choose>
+            <choose>
+                <when test="rkId != null">
+                    and t.rk_id = #{rkId}
+                </when>
+            </choose>
+            <choose>
+                <when test="ckId != null">
+                    and t.ck_id = #{ckId}
+                </when>
+            </choose>
+            <choose>
+                <when test="minDistance != null and maxDistance != null">
+                    and t.tolldistance between #{minDistance} and #{maxDistance}
+                </when>
+                <when test="minDistance != null and maxDistance == null">
+                    and t.tolldistance &gt;= #{minDistance}
+                </when>
+                <when test="minDistance == null and maxDistance != null">
+                    and t.tolldistance &lt;= #{maxDistance}
+                </when>
+            </choose>
+            <choose>
+                <when test="minTravelTime != null and maxTravelTime != null">
+                    and TIMESTAMPDIFF(MINUTE,t.entime,t.extime) between #{minTravelTime} and #{maxTravelTime}
+                </when>
+                <when test="minTravelTime != null and maxTravelTime == null">
+                    and TIMESTAMPDIFF(MINUTE,t.entime,t.extime) &gt;= #{minTravelTime}
+                </when>
+                <when test="minTravelTime == null and maxTravelTime != null">
+                    and TIMESTAMPDIFF(MINUTE,t.entime,t.extime) &lt;= #{maxTravelTime}
+                </when>
+            </choose>
     </select>
     <select id="getRiskAmountFromAll" resultType="com.drcnet.highway.dto.RiskAmountDto">
-        select COUNT(diff_flagstation_info) diffFlagstationInfo,COUNT(short_dis_overweight) shortDisOverweight
-        ,COUNT(long_dis_lightweight) longDisLightweight,COUNT(speed) speed, COUNT(same_station) sameStation
-        ,COUNT(same_car_type) sameCarType,COUNT(same_car_situation) sameCarSituation
-        ,COUNT(different_zhou) differentZhou,COUNT(same_car_number) sameCarNumber
-        ,COUNT(flagstation_lost) flagstationLost
-        ,0 minOutIn
-        ,COUNT(same_time_range_again) sameTimeRangeAgain, count(high_speed) highSpeed, count(low_speed) lowSpeed
-        from
-        (select
-        CASE WHEN tfe.diff_flagstation_info = 1 THEN 1 ELSE NULL end diff_flagstation_info,
-        CASE WHEN tfe.short_dis_overweight = 1 THEN 1 ELSE NULL end short_dis_overweight,
-        CASE WHEN tfe.long_dis_lightweight = 1 THEN 1 ELSE NULL end long_dis_lightweight,
-        CASE WHEN tfe.speed = 1 THEN 1 ELSE NULL end speed,
-        CASE WHEN tfe.same_station = 1 THEN 1 ELSE NULL end same_station,
-        CASE WHEN tfe.same_car_type = 0 THEN 1 ELSE NULL end same_car_type,
-        CASE WHEN tfe.same_car_situation = 0 THEN 1 ELSE NULL end same_car_situation,
-        CASE WHEN tfe.different_zhou = 1 THEN 1 ELSE NULL end different_zhou,
-        CASE WHEN tfe.same_car_number = 0 THEN 1 ELSE NULL end same_car_number,
-        CASE WHEN tfe.flagstation_lost = 1 THEN 1 ELSE NULL end flagstation_lost,
-        CASE WHEN tfe.same_time_range_again = 1 THEN 1 ELSE NULL end same_time_range_again,
-        CASE WHEN tfe.high_speed = 1 THEN 1 ELSE NULL end high_speed,
-        CASE WHEN tfe.low_speed = 1 THEN 1 ELSE NULL end low_speed
-        from highway_tietou.tietou_2019 t LEFT JOIN highway_tietou.tietou_feature_extraction tfe on t.id = tfe.id
-        WHERE t.vlp_id = #{carId} and t.extime BETWEEN #{beginDate} AND #{endDate}
+        select  sum(tfe.diff_flagstation_info) diffFlagstationInfo,
+                sum(tfe.short_dis_overweight) shortDisOverweight,
+                sum(tfe.long_dis_lightweight) longDisLightweight,
+                sum(tfe.speed) speed,
+                sum(tfe.same_station) sameStation,
+                sum(CASE WHEN tfe.same_car_type = 0 THEN 1 ELSE 0 END) sameCarType,
+                sum(CASE WHEN tfe.same_car_situation = 0 THEN 1 ELSE 0 END) sameCarSituation,
+                sum(CASE WHEN tfe.same_car_number = 0 THEN 1 ELSE 0 END) sameCarNumber,
+                sum(tfe.different_zhou) differentZhou,
+                sum(tfe.flagstation_lost) flagstationLost,
+                0 minOutIn,
+                sum(tfe.same_time_range_again) sameTimeRangeAgain,
+                sum(tfe.high_speed) highSpeed,
+                sum(tfe.low_speed) lowSpeed
+        from highway_tietou.tietou_feature_extraction tfe LEFT JOIN highway_tietou.tietou_2019 t on tfe.id = t.id
+        WHERE tfe.vlp_id = #{carId}
+        <choose>
+            <when test="beginDate != null and endDate != null">
+                and t.extime BETWEEN #{beginDate} AND #{endDate}
+            </when>
+            <when test="beginDate != null and endDate == null">
+                and t.extime &gt;= #{beginDate}
+            </when>
+            <when test="beginDate == null and endDate != null">
+                and t.extime &lt;= #{endDate}
+            </when>
+        </choose>
         <choose>
             <when test="rkId != null">
                 and t.rk_id = #{rkId}
@@ -487,7 +492,6 @@
                 and TIMESTAMPDIFF(MINUTE,t.entime,t.extime) &lt;= #{maxTravelTime}
             </when>
         </choose>
-        ) res
     </select>
     <select id="listCheatingCar" resultType="com.drcnet.highway.dto.CheatingViolationDto">
         select carNoId,carNo,MAX(cheating) cheating,MAX(violation) violation,MAX(score) score from
@@ -1050,9 +1054,9 @@
         limit 10
     </select>
     <select id="listLowSpeedAndWeight" resultMap="BaseResultMap">
-        select * from highway_tietou.tietou_2019 where id in
+        select * from tietou where id in
         (select  id from
-          (select id from highway_tietou.tietou_feature_extraction
+          (select id from tietou_feature_extraction
             where vlp_id = #{carNoId}
               <choose>
                   <when test="lightWeightFlag and overWeightFlag">
@@ -1068,9 +1072,18 @@
                limit ${limit}) res)
     </select>
     <select id="listSameCarNumRecord" resultMap="BaseResultMap">
-        select * from highway_tietou.tietou_2019 where id in
+        select * from
+                      <choose>
+                          <when test="isCurrent == 1">tietou</when>
+                          <otherwise>highway_tietou.tietou_2019</otherwise>
+                      </choose>
+                      where id in
            (select  id from
-               (select id from highway_tietou.tietou_feature_extraction
+               (select id from
+        <choose>
+            <when test="isCurrent == 1">tietou_feature_extraction</when>
+            <otherwise>highway_tietou.tietou_feature_extraction</otherwise>
+        </choose>
                 where vlp_id = #{carNoId} and same_car_number = 0 limit ${limit}) res)
     </select>
     <select id="listByTimePeriod" resultMap="BaseResultMap">
@@ -1247,5 +1260,8 @@
         <foreach collection="vlpIdList" item="item" separator="," open="(" close=")">
             #{item}
         </foreach>
+    </select>
+    <select id="listRecordByVlpAndExEntime" resultMap="BaseResultMap">
+        select * from tietou where vlp_id = #{vlpId} and enTime between #{startTime} and #{endTime}
     </select>
 </mapper>

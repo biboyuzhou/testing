@@ -3,6 +3,7 @@ package com.drcnet.highway;
 import com.drcnet.highway.config.LocalVariableConfig;
 import com.drcnet.highway.dao.TietouCarDicMapper;
 import com.drcnet.highway.entity.dic.TietouCarDic;
+import com.drcnet.highway.service.TaskService;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -23,6 +24,8 @@ public class LocalVariableTest {
 
     @Resource
     private TietouCarDicMapper carDicMapper;
+    @Resource
+    private TaskService taskService;
 
     @Test
     public void test() {
@@ -35,5 +38,16 @@ public class LocalVariableTest {
         Integer vlpId = 887;
         TietouCarDic carDic = carDicMapper.selectByPrimaryKey(vlpId);
         System.out.println(carDic.getWeightMax());
+    }
+
+    @Test
+    public void testTransaction() {
+        Integer id = 4;
+        try {
+            taskService.getNewTaskId(id);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
     }
 }

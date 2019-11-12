@@ -1,5 +1,6 @@
 package com.drcnet.highway.service.dic;
 
+import com.drcnet.highway.constants.CacheKeyConsts;
 import com.drcnet.highway.constants.ConfigConsts;
 import com.drcnet.highway.constants.TipsConsts;
 import com.drcnet.highway.dao.TietouCarDicMapper;
@@ -279,7 +280,7 @@ public class TietouCarDicService implements BaseService<TietouCarDic, Integer> {
                     thisMapper.insertNewCar(carDicInsert);
                     Integer oldId = id;
                     if ((id = carDicInsert.getId()) != null) {
-                        BoundHashOperations<String, String, Integer> cacheOperation = redisTemplate.boundHashOps("car_cache");
+                        BoundHashOperations<String, String, Integer> cacheOperation = redisTemplate.boundHashOps(CacheKeyConsts.CAR_DIC_CACHE);
                         cacheOperation.put(carNo, id);
                         cacheOperation.put(huoCarNo, oldId);
                     }
@@ -321,7 +322,7 @@ public class TietouCarDicService implements BaseService<TietouCarDic, Integer> {
             thisMapper.insertNewCar(carDic);
             Integer id = carDic.getId();
 //            log.info("新增一个车牌:{}", carNo);
-            BoundHashOperations<String, String, Integer> cacheOperation = redisTemplate.boundHashOps("car_cache");
+            BoundHashOperations<String, String, Integer> cacheOperation = redisTemplate.boundHashOps(CacheKeyConsts.CAR_DIC_CACHE);
             BoundHashOperations<String, String, String> cacheUselessOperation = redisTemplate.boundHashOps("car_cache_useless");
             if (id != null) {
                 cacheOperation.put(carNo, id);
@@ -374,7 +375,7 @@ public class TietouCarDicService implements BaseService<TietouCarDic, Integer> {
             if (id != null) {
                 log.info("新增一个车牌:{}", carNo);
                 if (dic.getUseFlag()) {
-                    BoundHashOperations<String, String, Integer> cacheOperation = redisTemplate.boundHashOps("car_cache");
+                    BoundHashOperations<String, String, Integer> cacheOperation = redisTemplate.boundHashOps(CacheKeyConsts.CAR_DIC_CACHE);
                     cacheOperation.put(carNo, id);
                 } else {
                     BoundHashOperations<String, String, String> cacheUselessOperation = redisTemplate.boundHashOps("car_cache_useless");

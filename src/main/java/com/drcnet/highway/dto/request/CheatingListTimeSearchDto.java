@@ -82,6 +82,11 @@ public class CheatingListTimeSearchDto extends PagingDto implements Serializable
      */
     private Integer limit;
 
+    /**
+     * 是否查询当前路段信息0全路段，1当前路段
+     */
+    private Integer current;
+
     public boolean isTietouQuery(CheatingListTimeSearchDto dto) {
         if (!StringUtils.isEmpty(beginDate) || !StringUtils.isEmpty(endDate) || rkId != null || ckId != null || minDistance != null
                 || maxDistance != null || minTravelTime != null || maxTravelTime != null ) {

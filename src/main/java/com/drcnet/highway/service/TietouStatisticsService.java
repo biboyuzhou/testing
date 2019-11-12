@@ -27,6 +27,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 
 import javax.annotation.Resource;
 import java.io.*;
@@ -259,5 +260,16 @@ public class TietouStatisticsService implements BaseService<TietouFeatureStatist
         tietouCleanService.updateIsFreeCar(1);
         log.info("------------------insert into statistic已完成！");
         thisMapper.pullStatisticScoreFromAll();
+    }
+
+    /**
+     * 查询出在当前路段有异常行为的车辆
+     * @param carIdList 车辆ID列表
+     */
+    public List<Integer> filterCurrentCarNoId(List<Integer> carIdList) {
+        if (CollectionUtils.isEmpty(carIdList)){
+            return new ArrayList<>();
+        }
+        return thisMapper.selectCurrentCarNoId(carIdList);
     }
 }

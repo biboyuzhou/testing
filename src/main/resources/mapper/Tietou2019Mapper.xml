@@ -128,4 +128,69 @@
       </if>
     ) r
   </select>
+
+  <select id="statisticRiskTypeCountByMonth" resultType="com.drcnet.highway.domain.StatisticRiskTypeCount">
+    select COUNT( case when same_car_number = 0 then 1 ELSE NULL end) same_car_number
+		,COUNT( case when low_speed =1 then 1 ELSE NULL end) low_speed
+		,COUNT( case when high_speed =1 then 1 ELSE NULL end) high_speed
+        ,COUNT( case when same_car_type = 0 then 1 ELSE NULL end) same_car_type
+        ,COUNT( case when same_car_situation = 0 then 1 ELSE NULL end) same_car_situation
+        ,COUNT( case when short_dis_overweight = 1 then 1 ELSE NULL end) short_dis_overweight
+        ,COUNT( case when long_dis_lightweight = 1 then 1 ELSE NULL end) long_dis_lightweight
+        ,COUNT( case when diff_flagstation_info = 1 then 1 ELSE NULL end) diff_flagstation_info
+		,COUNT( case when flagstation_lost = 1 then 1 ELSE NULL end) flagstation_lost
+        ,COUNT( case when same_station = 1 then 1 ELSE NULL end) same_station
+		,COUNT( case when same_time_range_again = 1 then 1 ELSE NULL end) same_time_range_again
+		,COUNT( case when min_out_in = 1 then 1 ELSE NULL end) min_out_in
+		,COUNT( case when different_zhou = 1 then 1 ELSE NULL end) different_zhou
+        from highway_tietou.tietou_feature_extraction tf where month_time = #{maxMonth}
+  </select>
+
+  <select id="statisticRiskTypeCountByMonthAndRiskType" resultType="com.drcnet.highway.domain.StatisticRiskTypeCount">
+    select
+        <choose>
+          <when test="firstRiskName == 'same_car_type' or firstRiskName == 'same_car_situation' or firstRiskName == 'same_car_number'">
+            COUNT( case when ${firstRiskName} = 0 then 1 ELSE NULL end) ${firstRiskName}
+           </when>
+          <otherwise> COUNT( case when ${firstRiskName} = 1 then 1 ELSE NULL end) ${firstRiskName} </otherwise>
+        </choose>
+        <choose>
+          <when test="secondRiskName == 'same_car_type' or secondRiskName == 'same_car_situation' or secondRiskName == 'same_car_number'">
+            ,COUNT( case when ${secondRiskName} = 0 then 1 ELSE NULL end) ${secondRiskName}
+          </when>
+          <otherwise> ,COUNT( case when ${secondRiskName} = 1 then 1 ELSE NULL end) ${secondRiskName} </otherwise>
+        </choose>
+        <choose>
+          <when test="thirdRiskName == 'same_car_type' or thirdRiskName == 'same_car_situation' or thirdRiskName == 'same_car_number'">
+            ,COUNT( case when ${thirdRiskName} = 0 then 1 ELSE NULL end) ${thirdRiskName}
+          </when>
+          <otherwise> ,COUNT( case when ${thirdRiskName} = 1 then 1 ELSE NULL end) ${thirdRiskName} </otherwise>
+        </choose>
+
+        from highway_tietou.tietou_feature_extraction tf where month_time = #{monthTime}
+  </select>
+
+  <select id="listTietouAndExtractionByperoid" resultType="com.drcnet.highway.domain.es.EsTietouExtraction">
+    select  t.id,t.month_time monthTime,t.entime,t.rk,t.rk_id rkId,
+            t.envlp, t.envlp_id envlpId,
+            t.envt,t.envc,t.extime,t.ck,t.ck_id ckId,t.vlp,t.vlp_id vlpId,
+            t.vc,t.vt,t.exlane,t.oper,t.lastmoney,t.freemoney,t.totalweight,
+            t.axlenum,t.tolldistance,t.card,t.flagstationinfo,t.realflagstationinfo,
+            t.inv,e.same_station sameStation,
+            e.low_speed lowSpeed,e.high_speed highSpeed,
+            e.same_car_number sameCarNumber,
+            e.same_car_type sameCarType,
+            e.same_car_situation sameCarSituation,
+            e.short_dis_overweight shortDisOverweight,
+            e.long_dis_lightweight longDisLightweight,
+            e.different_zhou differentZhou,
+            e.same_time_range_again sameTimeRangeAgain,
+            e.flagstation_lost flagstationLost,
+            e.diff_flagstation_info diffFlagstationInfo,
+            e.same_route_mark sameRouteMark,
+            e.min_out_in minOutIn,
+            e.car_type carType
+	from highway_tietou.tietou_2019 t  inner join highway_tietou.tietou_feature_extraction e
+	  on t.id = e.id where t.id between #{begin} and #{end}
+  </select>
 </mapper>

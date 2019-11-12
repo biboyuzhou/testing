@@ -7,6 +7,7 @@ import com.drcnet.highway.service.usermodule.UserService;
 import com.drcnet.highway.util.AuthenticationUtil;
 import com.drcnet.usermodule.permission.AuthcRealm;
 import com.drcnet.usermodule.permission.UserContext;
+import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
 import java.io.Serializable;
@@ -19,6 +20,7 @@ import java.util.List;
  * @CreateTime: 2019/4/3 13:27
  * @Description:
  */
+@Component
 public class MyRealm implements AuthcRealm {
 
     @Resource

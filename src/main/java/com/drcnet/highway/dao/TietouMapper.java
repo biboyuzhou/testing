@@ -279,7 +279,7 @@ public interface TietouMapper extends MyMapper<TietouOrigin> {
     List<TietouOrigin> listLowSpeedAndWeight(@Param("carNoId") Integer carNoId, @Param("limit") int limit
             ,@Param("overWeightFlag") boolean overWeightFlag,@Param("lightWeightFlag") boolean lightWeightFlag);
 
-    List<TietouOrigin> listSameCarNumRecord(@Param("carNoId") Integer carNoId,@Param("limit") int limit);
+    List<TietouOrigin> listSameCarNumRecord(@Param("carNoId") Integer carNoId, @Param("limit") int limit,@Param("isCurrent") Integer isCurrent);
 
     /**
      * 二绕：统计每个出口站的行程记录数量
@@ -387,4 +387,6 @@ public interface TietouMapper extends MyMapper<TietouOrigin> {
      * @return
      */
     StartEndTimeDomain getMaxMinExtimeOfTop20(@Param("vlpIdList") List<Integer> vlpIdList);
+
+    List<TietouOrigin> listRecordByVlpAndExEntime(@Param("vlpId") Integer vlpId,@Param("startTime") LocalDateTime startTime,@Param("endTime") LocalDateTime endTime);
 }

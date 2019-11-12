@@ -1,9 +1,6 @@
 package com.drcnet.highway.config;
 
-import com.drcnet.highway.permission.MyRealm;
 import com.drcnet.highway.util.FilePathUtil;
-import com.drcnet.usermodule.permission.AuthcRealm;
-import com.drcnet.usermodule.permission.SecurityUtil;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -130,16 +127,5 @@ public class HighwayConfig {
         if (!FilePathUtil.isWindows())
             Runtime.getRuntime().exec("chmod 777 -R " + filePath);
         return factory.createMultipartConfig();
-    }
-
-    /**
-     * 将密码验证规则设置进权限验证中
-     * @return
-     */
-    @Bean
-    public AuthcRealm pwdRealm(){
-        MyRealm myRealm = new MyRealm();
-        SecurityUtil.getHandler().setAuthcRealm(myRealm);
-        return myRealm;
     }
 }

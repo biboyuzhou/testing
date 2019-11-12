@@ -2,6 +2,7 @@ package com.drcnet.highway.service;
 
 import com.drcnet.highway.constants.CarSituationConsts;
 import com.drcnet.highway.constants.RgbConsts;
+import com.drcnet.highway.constants.TimeConsts;
 import com.drcnet.highway.constants.enumtype.YesNoEnum;
 import com.drcnet.highway.dao.StationDicMapper;
 import com.drcnet.highway.dao.TietouCarDicMapper;
@@ -32,10 +33,8 @@ import java.math.BigInteger;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.drcnet.highway.constants.CarSituationConsts.CAR_TYPE_MAP;
@@ -65,7 +64,7 @@ public class ReportTemplateService {
     /**
      * 创建报告
      */
-    public XWPFDocument buildReport(Collection<Integer> carNoIds, String title, CheatingListTimeSearchDto dto) {
+    public XWPFDocument buildReport(Collection<Integer> carNoIds, String title, CheatingListTimeSearchDto dto, YesNoEnum isCurrent) {
         if (CollectionUtils.isEmpty(carNoIds)) {
             return null;
         }
@@ -88,7 +87,7 @@ public class ReportTemplateService {
         //生成文档内容
         for (Integer carNoId : carNoIds) {
             orderNum++;
-            buildContent(orderNum, carNoId, document, vcMap, dto);
+            buildContent(orderNum, carNoId, document, vcMap, dto,isCurrent);
         }
         //设置行距
         for (XWPFParagraph paragraph : document.getParagraphs()) {
@@ -101,17 +100,23 @@ public class ReportTemplateService {
 
     /**
      * 创建单个车辆的违规内容
-     *
-     * @param orderNum 排序号
+     *  @param orderNum 排序号
      * @param carNoId  车牌ID
      * @param document 文档
      * @param vcMap    车型Map
      * @param dto
+     * @param isCurrent
      */
-    private void buildContent(int orderNum, Integer carNoId, XWPFDocument document, Map<Integer, String> vcMap, CheatingListTimeSearchDto dto) {
+    private void buildContent(int orderNum, Integer carNoId, XWPFDocument document, Map<Integer, String> vcMap, CheatingListTimeSearchDto dto, YesNoEnum isCurrent) {
         TietouFeatureStatistic statisticQuery = new TietouFeatureStatistic();
         statisticQuery.setVlpId(carNoId);
-        TietouFeatureStatistic statisticRes = featureStatisticMapper.selectFromAllByVlpId(carNoId);
+        TietouFeatureStatistic statisticRes;
+        if (isCurrent == YesNoEnum.YES){
+            statisticRes = featureStatisticMapper.selectOne(statisticQuery);
+        }else {
+            statisticRes = featureStatisticMapper.selectFromAllByVlpId(carNoId);
+        }
+
         if (statisticRes == null) {
             return;
         }
@@ -132,32 +137,36 @@ public class ReportTemplateService {
         int minOutInFlag = 2;
         //如果速度过慢次数超过10次,且短途重载和长途轻载小于10次，则生成速度过慢报告
         if (lowSpeedAmount > lowSpeedFlag) {
+            buildLowSpeed(cheatingCount, statisticRes, carNoId, document, dto,isCurrent);
+            cheatingCount++;
             //用于打印速度速度异常说明
-            boolean speedFlag = false;
+            /*boolean speedFlag = false;
             if ((shortDisOverweight < 5 && longDisLightweight < 5 && minOutIn < minOutInFlag) || carType < 10) {
                 buildLowSpeed(cheatingCount, statisticRes, carNoId, document, dto);
                 speedFlag = true;
                 cheatingCount++;
-            }
-            if (carType > 10 && (shortDisOverweight >= 5 || longDisLightweight >= 5)) {
+            }*/
+
+            /*if (carType > 10 && (shortDisOverweight >= 5 || longDisLightweight >= 5)) {
                 cheatingCount = buildLowSpeedAndOverWeight(cheatingCount, statisticRes, carNoId, document);
                 speedFlag = true;
             }
             //如果高频进出次数超过10次，则记为一个异常点
             if (carType > 10 && minOutIn >= minOutInFlag) {
                 cheatingCount = buildFrequentlyOutIn(cheatingCount, statisticRes, carNoId, document, speedFlag);
-            }
+            }*/
 
-        } else if (carType > 10 && longDisLightweight >= 5) {
+        }
+        if (carType > 10 && longDisLightweight >= 5) {
             //长途轻载
-            buildLongDisLightweight(cheatingCount, statisticRes, carNoId, document, dto);
+            buildLongDisLightweight(cheatingCount, statisticRes, carNoId, document, dto,isCurrent);
             cheatingCount++;
         }
 
 
         //短途重载
-        if (lowSpeedAmount <= lowSpeedFlag && carType > 10 && shortDisOverweight >= 5) {
-            buildShortDisOverweight(cheatingCount, statisticRes, carNoId, document, dto);
+        if (carType > 10 && shortDisOverweight >= 5) {
+            buildShortDisOverweight(cheatingCount, statisticRes, carNoId, document, dto,isCurrent);
             cheatingCount++;
         }
         //轴数不一致超过2次则生成轴数异常报告
@@ -166,18 +175,18 @@ public class ReportTemplateService {
             cheatingCount++;
         }
         //高频进出
-        if (lowSpeedAmount <= lowSpeedFlag && carType > 10 && minOutIn > minOutInFlag) {
-            buildMinOutIn(cheatingCount, statisticRes, carNoId, document);
+        if (carType > 10 && minOutIn > minOutInFlag) {
+            buildMinOutIn(cheatingCount, statisticRes, carNoId, document,isCurrent);
             cheatingCount++;
         }
         //生成车牌不一致报告
         if (sameCarNumber >= 2) {
-            buildSameCarNumber(cheatingCount, statisticRes, carNoId, document);
+            buildSameCarNumber(cheatingCount, statisticRes, carNoId, document,isCurrent);
             cheatingCount++;
         }
         //生成时间重叠报告
         if (sameTimeRangeAgain > 2) {
-            buildSameTimeRangeAgain(cheatingCount, statisticRes, carNoId, document, dto);
+            buildSameTimeRangeAgain(cheatingCount, statisticRes, carNoId, document, dto,isCurrent);
         }
         //翻页
         document.createParagraph().createRun().addBreak(BreakType.PAGE);
@@ -247,7 +256,7 @@ public class ReportTemplateService {
     /**
      * 生成低速报告
      */
-    private void buildLowSpeed(int cheatingCount, TietouFeatureStatistic statistic, Integer carNoId, XWPFDocument document, CheatingListTimeSearchDto dto) {
+    private void buildLowSpeed(int cheatingCount, TietouFeatureStatistic statistic, Integer carNoId, XWPFDocument document, CheatingListTimeSearchDto dto, YesNoEnum isCurrent) {
         Integer lowSpeedAmount = statistic.getLowSpeed();
         Integer transitTimes = statistic.getTransitTimes();
         String lowSpeedTips = getTxt(FeatureEnum.LOW_SPEED, cheatingCount, lowSpeedAmount, getPercent(lowSpeedAmount, transitTimes, 1));
@@ -261,12 +270,12 @@ public class ReportTemplateService {
         inOutDto.setCode(FeatureCodeEnum.LOW_SPEED.code);
         inOutDto.setPageNum(1);
         inOutDto.setPageSize(10);
-        inOutDto.setIsCurrent(YesNoEnum.NO.getCode());
+        inOutDto.setIsCurrent(isCurrent.getCode());
         inOutDto.setBeginDate(dto.getBeginDate());
         inOutDto.setEndDate(dto.getEndDate());
         PageVo<TietouOrigin> lowSpeedRecord = tietouService.listRiskInOutDetail(inOutDto);
         List<TietouOrigin> data = lowSpeedRecord.getData();
-        XWPFTable table = document.createTable(data.size() + 1, 7);
+        XWPFTable table = document.createTable(data.size() + 1, 6);
         setTableWidth(table, 12000);
         //设置标题
         XWPFTableRow titleRow = table.getRow(0);
@@ -276,7 +285,7 @@ public class ReportTemplateService {
         createParagraph(titleRow.getCell(3).addParagraph()).setTxt("出站时间").build();
         createParagraph(titleRow.getCell(4).addParagraph()).setTxt("通行距离(km)").build();
         createParagraph(titleRow.getCell(5).addParagraph()).setTxt("平均速度(km/h)").build();
-        createParagraph(titleRow.getCell(6).addParagraph()).setTxt("该路段该车型平均速度(km/h)").build();
+//        createParagraph(titleRow.getCell(6).addParagraph()).setTxt("该路段该车型平均速度(km/h)").build();
 
 
         for (int i = 0; i < data.size(); i++) {
@@ -290,8 +299,8 @@ public class ReportTemplateService {
             createParagraph(row.getCell(3).addParagraph()).setTxt(DateUtils.formatTime(extime)).build();
             createParagraph(row.getCell(4).addParagraph()).setTxt(String.valueOf(NumberUtil.divideThousand(record.getTolldistance(), 3))).build();
             createParagraph(row.getCell(5).addParagraph()).setTxt(String.valueOf(getDivide((double) record.getTolldistance(), (double) Duration.between(entime, extime).getSeconds(), 2))).build();
-            createParagraph(row.getCell(6).addParagraph()).setTxt(Optional.ofNullable(record.getStationFeature())
-                    .map(var -> String.valueOf(var.getAvgSpeedByVc(record.getVc()))).orElse("")).build();
+//            createParagraph(row.getCell(6).addParagraph()).setTxt(Optional.ofNullable(record.getStationFeature())
+//                    .map(var -> String.valueOf(var.getAvgSpeedByVc(record.getVc()))).orElse("")).build();
         }
     }
 
@@ -343,7 +352,7 @@ public class ReportTemplateService {
 
         List<TietouOrigin> tietouOrigins = tietouService.listLowSpeedAndWeight(carNoId, 10, overWeightFlag, lightWeightFlag);
         tietouService.setRouteAvgSpeed(tietouOrigins);
-        XWPFTable table = document.createTable(tietouOrigins.size() + 1, 8);
+        XWPFTable table = document.createTable(tietouOrigins.size() + 1, 7);
         setTableWidth(table, 12000);
         //设置标题
         XWPFTableRow titleRow = table.getRow(0);
@@ -353,8 +362,8 @@ public class ReportTemplateService {
         createParagraph(titleRow.getCell(3).addParagraph()).setTxt("出站时间").build();
         createParagraph(titleRow.getCell(4).addParagraph()).setTxt("通行距离(km)").build();
         createParagraph(titleRow.getCell(5).addParagraph()).setTxt("平均速度(km/h)").build();
-        createParagraph(titleRow.getCell(6).addParagraph()).setTxt("该路段该车型平均速度").build();
-        createParagraph(titleRow.getCell(7).addParagraph()).setTxt("总重(t)").build();
+//        createParagraph(titleRow.getCell(6).addParagraph()).setTxt("该路段该车型平均速度").build();
+        createParagraph(titleRow.getCell(6).addParagraph()).setTxt("总重(t)").build();
 
         for (int i = 0; i < tietouOrigins.size(); i++) {
             TietouOrigin record = tietouOrigins.get(i);
@@ -370,9 +379,9 @@ public class ReportTemplateService {
             createParagraph(row.getCell(3).addParagraph()).setTxt(DateUtils.formatTime(extime)).build();
             createParagraph(row.getCell(4).addParagraph()).setTxt(String.valueOf(NumberUtil.divideThousand(record.getTolldistance(), 3))).build();
             createParagraph(row.getCell(5).addParagraph()).setTxt(String.valueOf(speed)).build();
-            createParagraph(row.getCell(6).addParagraph()).setTxt(Optional.ofNullable(record.getStationFeature())
-                    .map(var -> String.valueOf(var.getAvgSpeedByVc(record.getVc()))).orElse("")).build();
-            createParagraph(row.getCell(7).addParagraph()).setTxt(String.valueOf(NumberUtil.divideThousand(record.getTotalweight(), 3))).build();
+//            createParagraph(row.getCell(6).addParagraph()).setTxt(Optional.ofNullable(record.getStationFeature())
+//                    .map(var -> String.valueOf(var.getAvgSpeedByVc(record.getVc()))).orElse("")).build();
+            createParagraph(row.getCell(6).addParagraph()).setTxt(String.valueOf(NumberUtil.divideThousand(record.getTotalweight(), 3))).build();
         }
         return cheatingCount;
     }
@@ -380,44 +389,46 @@ public class ReportTemplateService {
     /**
      * 设置高频进出异常点
      */
-    private int buildFrequentlyOutIn(int cheatingCount, TietouFeatureStatistic statisticRes, Integer carNoId, XWPFDocument document, boolean speedFlag) {
+    private int buildFrequentlyOutIn(int cheatingCount, TietouFeatureStatistic statisticRes, Integer carNoId, XWPFDocument document, boolean speedFlag,YesNoEnum isCurrent) {
         Integer minOutIn = statisticRes.getMinOutIn();
         Integer lowSpeed = statisticRes.getLowSpeed();
         Integer transitTimes = statisticRes.getTransitTimes();
-        if (!speedFlag)
+        if (!speedFlag){}
             buildStatisticContent(cheatingCount++, "车速过慢", lowSpeed, getPercent(lowSpeed, transitTimes, 2), document, FeatureEnum.LOW_SPEED_DETAIL);
         //高频进出统计
         buildStatisticContent(cheatingCount++, "同站先出后进", minOutIn, getPercent(minOutIn, transitTimes, 2), document, FeatureEnum.MIN_OUT_IN_DETAIL);
 //        String title = getTxt(FeatureEnum.LOW_SPEED_FREQUENCY_IN_OUT, cheatingCount, lowSpeed, minOutIn, getPercent(lowSpeed, transitTimes, 1), getPercent(minOutIn, transitTimes, 2));
         String detail = getTxt(FeatureEnum.LOW_SPEED_FREQUENCY_IN_OUT_DETAIL);
         settingTitleAndDetail(null, detail, document, "  该车辆同站先出后进通行记录如下所示:");
-        buildMinOutInTable(carNoId, document);
+        buildMinOutInTable(carNoId, document, isCurrent);
         return cheatingCount;
     }
 
     /**
      * 生成高频进出报告信息
      */
-    private void buildMinOutIn(int cheatingCount, TietouFeatureStatistic statisticRes, Integer carNoId, XWPFDocument document) {
+    private void buildMinOutIn(int cheatingCount, TietouFeatureStatistic statisticRes, Integer carNoId, XWPFDocument document, YesNoEnum isCurrent) {
         String title = getTxt(FeatureEnum.MIN_OUT_IN, cheatingCount, statisticRes.getMinOutIn());
         String detail = getTxt(FeatureEnum.MIN_OUT_IN_DETAIL);
         settingTitleAndDetail(title, detail, document, "  该车辆同站先出后进通行记录如下所示:");
-        buildMinOutInTable(carNoId, document);
+        buildMinOutInTable(carNoId, document,isCurrent);
     }
 
     /**
      * 生成先出后进表格
-     *
-     * @param carNoId  车牌ID
+     *  @param carNoId  车牌ID
      * @param document 文档
+     * @param isCurrent
      */
-    private void buildMinOutInTable(Integer carNoId, XWPFDocument document) {
+    private void buildMinOutInTable(Integer carNoId, XWPFDocument document, YesNoEnum isCurrent) {
         RiskInOutDto inOutDto = new RiskInOutDto();
         inOutDto.setCarId(carNoId);
         inOutDto.setCode(FeatureCodeEnum.MIN_OUT_IN.code);
         inOutDto.setPageNum(1);
         inOutDto.setPageSize(10);
-        inOutDto.setIsCurrent(YesNoEnum.NO.getCode());
+        inOutDto.setIsCurrent(isCurrent.getCode());
+        inOutDto.setBeginDate("2019-01-01");
+        inOutDto.setEndDate(LocalDate.now().format(DateTimeFormatter.ofPattern(TimeConsts.DATE_FORMAT)));
         PageVo<TietouSameStationFrequently> pageVo = tietouSameStationFrequentlyService.listByQuery(inOutDto);
         List<TietouSameStationFrequently> data = pageVo.getData();
         XWPFTable table = document.createTable(data.size() + 1, 9);
@@ -498,11 +509,11 @@ public class ReportTemplateService {
     /**
      * 生成车牌不一致报告
      */
-    private void buildSameCarNumber(int cheatingCount, TietouFeatureStatistic statisticRes, Integer carNoId, XWPFDocument document) {
+    private void buildSameCarNumber(int cheatingCount, TietouFeatureStatistic statisticRes, Integer carNoId, XWPFDocument document, YesNoEnum isCurrent) {
         String title = getTxt(FeatureEnum.SAME_CAR_NUMBER, cheatingCount, statisticRes.getSameCarNumber());
         String detail = getTxt(FeatureEnum.SAME_CAR_NUMBER_DETAIL);
         settingTitleAndDetail(title, detail, document);
-        List<TietouOrigin> tietouOrigins = tietouService.listSameCarNumRecord(carNoId, 10);
+        List<TietouOrigin> tietouOrigins = tietouService.listSameCarNumRecord(carNoId, 10,isCurrent.getCode());
         XWPFTable table = document.createTable(tietouOrigins.size() + 1, 6);
         setTableWidth(table, 12000);
         XWPFTableRow titleRow = table.getRow(0);
@@ -523,16 +534,51 @@ public class ReportTemplateService {
             createParagraph(row.getCell(4).addParagraph()).setTxt(tietouOrigin.getEnvlp()).build();
             createParagraph(row.getCell(5).addParagraph()).setTxt(tietouOrigin.getVlp()).build();
         }
+
+        List<TietouOrigin> envlpRecord = new ArrayList<>();
+        for (TietouOrigin tietouOrigin : tietouOrigins) {
+            LocalDateTime entime = tietouOrigin.getEntime();
+            LocalDateTime extime = tietouOrigin.getExtime();
+            LocalDateTime startTime = entime.toLocalDate().atStartOfDay();
+            LocalDateTime endTime = extime.toLocalDate().plusDays(1).atStartOfDay();
+            Integer envlpId = tietouOrigin.getEnvlpId();
+            List<TietouOrigin> res = tietouService.listRecordByVlpAndExEntime(envlpId, startTime, endTime);
+            envlpRecord.addAll(res);
+        }
+        if (!envlpRecord.isEmpty()){
+            settingTitleAndDetail(null, detail, document,"进站车牌部分通行记录如下:");
+            XWPFTable enVlpTable = document.createTable(envlpRecord.size() + 1, 6);
+            setTableWidth(enVlpTable, 12000);
+            XWPFTableRow enVlpTitleRow = enVlpTable.getRow(0);
+            createParagraph(enVlpTitleRow.getCell(0).addParagraph()).setTxt("进站时间").build();
+            createParagraph(enVlpTitleRow.getCell(1).addParagraph()).setTxt("进站口").build();
+            createParagraph(enVlpTitleRow.getCell(2).addParagraph()).setTxt("出站时间").build();
+            createParagraph(enVlpTitleRow.getCell(3).addParagraph()).setTxt("出站口").build();
+            createParagraph(enVlpTitleRow.getCell(4).addParagraph()).setTxt("进站车牌").build();
+            createParagraph(enVlpTitleRow.getCell(5).addParagraph()).setTxt("出站车牌").build();
+
+            for (int i = 0; i < envlpRecord.size(); i++) {
+                TietouOrigin tietouOrigin = envlpRecord.get(i);
+                XWPFTableRow row = enVlpTable.getRow(i + 1);
+                createParagraph(row.getCell(0).addParagraph()).setTxt(DateUtils.formatTime(tietouOrigin.getEntime())).build();
+                createParagraph(row.getCell(1).addParagraph()).setTxt(tietouOrigin.getRk()).build();
+                createParagraph(row.getCell(2).addParagraph()).setTxt(DateUtils.formatTime(tietouOrigin.getExtime())).build();
+                createParagraph(row.getCell(3).addParagraph()).setTxt(tietouOrigin.getCk()).build();
+                createParagraph(row.getCell(4).addParagraph()).setTxt(tietouOrigin.getEnvlp()).build();
+                createParagraph(row.getCell(5).addParagraph()).setTxt(tietouOrigin.getVlp()).build();
+            }
+        }
+
     }
 
     /**
      * 生成时间重叠报告
      */
-    private void buildSameTimeRangeAgain(int cheatingCount, TietouFeatureStatistic statisticRes, Integer carNoId, XWPFDocument document, CheatingListTimeSearchDto dto) {
+    private void buildSameTimeRangeAgain(int cheatingCount, TietouFeatureStatistic statisticRes, Integer carNoId, XWPFDocument document, CheatingListTimeSearchDto dto, YesNoEnum isCurrent) {
         String title = getTxt(FeatureEnum.SAME_TIME_RANGE_AGAIN, cheatingCount, statisticRes.getSameTimeRangeAgain());
         String detail = getTxt(FeatureEnum.SAME_TIME_RANGE_AGAIN_DETAIL);
         settingTitleAndDetail(title, detail, document, "  该车辆时间重叠通行记录如下");
-        PageVo<TietouOrigin> pageVo = tietouService.listRiskInOutDetail(carNoId, FeatureCodeEnum.SAME_TIME_RANGE_AGAIN, dto);
+        PageVo<TietouOrigin> pageVo = tietouService.listRiskInOutDetail(carNoId, FeatureCodeEnum.SAME_TIME_RANGE_AGAIN, dto, isCurrent);
         List<TietouOrigin> data = pageVo.getData();
         XWPFTable table = document.createTable(data.size() + 1, 5);
         setTableWidth(table, 12000);
@@ -557,13 +603,13 @@ public class ReportTemplateService {
     /**
      * 生成长途轻载报告
      */
-    private void buildLongDisLightweight(int cheatingCount, TietouFeatureStatistic statisticRes, Integer carNoId, XWPFDocument document, CheatingListTimeSearchDto dto) {
+    private void buildLongDisLightweight(int cheatingCount, TietouFeatureStatistic statisticRes, Integer carNoId, XWPFDocument document, CheatingListTimeSearchDto dto, YesNoEnum isCurrent) {
         String title = getTxt(FeatureEnum.LONG_DIS_LIGHTWEIGHT, cheatingCount, statisticRes.getLongDisLightweight());
         String detail = getTxt(FeatureEnum.LONG_DIS_LIGHTWEIGHT_DETAIL);
         //载重说明
         buildWeightTips(carNoId, document);
         settingTitleAndDetail(title, detail, document, "  该车辆长途轻载通行记录如下");
-        PageVo<TietouOrigin> pageVo = tietouService.listRiskInOutDetail(carNoId, FeatureCodeEnum.LONG_DIS_LIGHTWEIGHT, dto);
+        PageVo<TietouOrigin> pageVo = tietouService.listRiskInOutDetail(carNoId, FeatureCodeEnum.LONG_DIS_LIGHTWEIGHT, dto,isCurrent);
         List<TietouOrigin> data = pageVo.getData();
         //生成表格
         overAndLightWeight(data, document);
@@ -572,13 +618,13 @@ public class ReportTemplateService {
     /**
      * 生成短途重载信息
      */
-    private void buildShortDisOverweight(int cheatingCount, TietouFeatureStatistic statisticRes, Integer carNoId, XWPFDocument document, CheatingListTimeSearchDto dto) {
+    private void buildShortDisOverweight(int cheatingCount, TietouFeatureStatistic statisticRes, Integer carNoId, XWPFDocument document, CheatingListTimeSearchDto dto, YesNoEnum isCurrent) {
         String title = getTxt(FeatureEnum.SHORT_DIS_OVERWEIGHT, cheatingCount, statisticRes.getShortDisOverweight());
         String detail = getTxt(FeatureEnum.SHORT_DIS_OVERWEIGHT_DETAIL);
         //载重说明
         buildWeightTips(carNoId, document);
         settingTitleAndDetail(title, detail, document, "  该车辆短途重载通行记录如下");
-        PageVo<TietouOrigin> pageVo = tietouService.listRiskInOutDetail(carNoId, FeatureCodeEnum.SHORT_DIS_OVERWEIGHT, dto);
+        PageVo<TietouOrigin> pageVo = tietouService.listRiskInOutDetail(carNoId, FeatureCodeEnum.SHORT_DIS_OVERWEIGHT, dto, isCurrent);
         List<TietouOrigin> data = pageVo.getData();
         //生成表格
         overAndLightWeight(data, document);
@@ -600,9 +646,10 @@ public class ReportTemplateService {
             tipsRun.setText(title);
             tipsRun.setBold(true);
         }
-        XWPFParagraph paragraph2 = document.createParagraph();
-        XWPFRun detailRun = paragraph2.createRun();
-        detailRun.setText(detail);
+        //fixme 注释了异常特征推断信息
+//        XWPFParagraph paragraph2 = document.createParagraph();
+//        XWPFRun detailRun = paragraph2.createRun();
+//        detailRun.setText(detail);
         XWPFParagraph paragraph3 = document.createParagraph();
         XWPFRun noticeRun = paragraph3.createRun();
         if (nextWord == null) {
@@ -611,7 +658,7 @@ public class ReportTemplateService {
         noticeRun.setText(nextWord);
         noticeRun.setBold(true);
         setFontFamily(paragraph, FANG_SONG);
-        setFontFamily(paragraph2, FANG_SONG);
+//        setFontFamily(paragraph2, FANG_SONG);
         setFontFamily(paragraph3, FANG_SONG);
     }
 
@@ -678,12 +725,12 @@ public class ReportTemplateService {
         XWPFRun proportionRun = proportionParagraph.createRun();
         proportionRun.setBold(true);
         proportionRun.setText(getTxt(FeatureEnum.COUNT_PROPORTION_MSG, proportion));
-        if (featureEnum != null) {
+        /*if (featureEnum != null) {
             XWPFParagraph detailParagraph = document.createParagraph();
             XWPFRun explainRun = detailParagraph.createRun();
             explainRun.setText(getTxt(featureEnum));
             setFontFamily(detailParagraph, FANG_SONG);
-        }
+        }*/
         setFontFamily(paragraph, FANG_SONG);
         setFontFamily(countParagraph, FANG_SONG);
         setFontFamily(proportionParagraph, FANG_SONG);

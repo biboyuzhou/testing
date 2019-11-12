@@ -1,5 +1,6 @@
 package com.drcnet.highway.service;
 
+import com.drcnet.highway.constants.CacheKeyConsts;
 import com.drcnet.highway.dao.TietouCarDicMapper;
 import com.drcnet.highway.dao.TietouInboundMapper;
 import com.drcnet.highway.dto.request.ChangeCardQueryDto;
@@ -47,7 +48,7 @@ public class TietouInboundService implements BaseService<TietouInbound, Integer>
      * @return
      */
     public PageVo<ChangeCardResponse> getChangeCardList(ChangeCardQueryDto dto) throws ParseException {
-        BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps("car_cache");
+        BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps(CacheKeyConsts.CAR_DIC_CACHE);
 
         Integer envlpId = null;
         if (!StringUtils.isEmpty(dto.getInCarNo())) {

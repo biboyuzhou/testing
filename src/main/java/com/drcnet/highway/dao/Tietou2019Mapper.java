@@ -1,6 +1,8 @@
 package com.drcnet.highway.dao;
 
+import com.drcnet.highway.domain.es.EsTietouExtraction;
 import com.drcnet.highway.domain.SameCarNum;
+import com.drcnet.highway.domain.StatisticRiskTypeCount;
 import com.drcnet.highway.dto.request.TravelRecordQueryDto;
 import com.drcnet.highway.entity.Tietou2019;
 import com.drcnet.highway.entity.TietouOrigin;
@@ -92,4 +94,24 @@ public interface Tietou2019Mapper extends MyMapper<Tietou2019> {
      * @return
      */
     List<TietouOrigin> listByTime(TravelRecordQueryDto travelRecordQueryDto);
+
+    /**
+     * 统计某个月内个风险的总量
+     * @param maxMonth
+     * @return
+     */
+    StatisticRiskTypeCount statisticRiskTypeCountByMonth(@Param("maxMonth") Integer maxMonth);
+
+    /**
+     * 统计某个月指定风险类别的数量
+     * @param firstRiskName
+     * @param secondRiskName
+     * @param thirdRiskName
+     * @param monthTime
+     * @return
+     */
+    StatisticRiskTypeCount statisticRiskTypeCountByMonthAndRiskType(@Param("firstRiskName") String firstRiskName,
+            @Param("secondRiskName") String secondRiskName, @Param("thirdRiskName") String thirdRiskName, @Param("monthTime") int monthTime);
+
+    List<EsTietouExtraction> listTietouAndExtractionByperoid(@Param("begin") int begin, @Param("end") int end);
 }

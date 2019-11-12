@@ -1,0 +1,15 @@
+es:
+  hosts: 192.168.101.204
+  port: 9200
+
+rocketmq:
+  namesever:
+    addr: 192.168.101.204:9876
+  topic:
+    test: TopicTest
+    gantryData: gantryData
+  producer:
+    gantryGroup: gantryDataGroup
+  consumer:
+    gantryGroup: gantryDataGroup
+
