@@ -1,10 +1,14 @@
 package com.drcnet.highway.service.dataclean;
 
+import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.drcnet.highway.common.BeanConvertUtil;
 import com.drcnet.highway.config.LocalVariableConfig;
 import com.drcnet.highway.constants.CacheKeyConsts;
 import com.drcnet.highway.constants.ConfigConsts;
+import com.drcnet.highway.constants.EsIndexConsts;
 import com.drcnet.highway.dao.*;
+import com.drcnet.highway.domain.es.EsTietouExtraction;
 import com.drcnet.highway.domain.StatisticCount;
 import com.drcnet.highway.dto.CarNoDto;
 import com.drcnet.highway.dto.response.CommonTypeCountDto;
@@ -17,9 +21,13 @@ import com.drcnet.highway.enums.CarTypeEnum;
 import com.drcnet.highway.service.TietouSameStationFrequentlyService;
 import com.drcnet.highway.service.TietouStationDicService;
 import com.drcnet.highway.service.dic.TietouCarDicService;
+import com.drcnet.highway.service.es.EsService;
 import com.drcnet.highway.util.EntityUtil;
 import com.drcnet.highway.util.Levenshtein;
 import lombok.extern.slf4j.Slf4j;
+import org.elasticsearch.action.bulk.BulkRequest;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.common.xcontent.XContentType;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.context.ApplicationContext;
 import org.springframework.core.task.TaskExecutor;
@@ -36,10 +44,7 @@ import org.springframework.util.StringUtils;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -94,6 +99,8 @@ public class TietouCleanService {
 
     @Resource
     private TietouStationDicService tietouStationDicService;
+    @Resource
+    private EsService esService;
 
     private Map<String, Integer> stationMap;
 
@@ -169,11 +176,11 @@ public class TietouCleanService {
      * 将车牌信息以 车牌号-车牌id的方式存入redis
      */
     public void initCarDic2Cache() {
-        String cacheName = "car_cache";
+
         Integer maxId = carDicMapper.getMaxId();
         int distance = 50000;
-        redisTemplate.delete(cacheName);
-        BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps(cacheName);
+        redisTemplate.delete(CacheKeyConsts.CAR_DIC_CACHE);
+        BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps(CacheKeyConsts.CAR_DIC_CACHE);
         for (int i = 1; i <= maxId; i += distance) {
             List<TietouCarDic> carDics = carDicMapper.selectByPeriod(i, i + distance);
             Map<String, Integer> collect = carDics.stream().collect(Collectors.toMap(TietouCarDic::getCarNo, TietouCarDic::getId));
@@ -1497,7 +1504,7 @@ public class TietouCleanService {
      * 导入tietou原始数据到数据库
      */
     public void importTietou2DB(String fileName, Integer count) {
-        BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps("car_cache");
+        BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps(CacheKeyConsts.CAR_DIC_CACHE);
         BoundHashOperations<String, Object, Object> stationHash = redisTemplate.boundHashOps("station_dic");
         String filePath = "C:\\test\\" + fileName + ".txt";
         List<String> list = new ArrayList<>(1000000);
@@ -1852,4 +1859,77 @@ public class TietouCleanService {
         tietouFeatureExtractionMapper.truncate();
     }
 
+    /**
+     * 将铁头数据写入到es
+     */
+    public void pushTietou2Es() {
+        long timeMillis = System.currentTimeMillis();
+        TietouCleanService currentProxy = applicationContext.getBean(TietouCleanService.class);
+        Integer maxId = tietou2019Mapper.selectMaxId();
+        int distance = 1000000;
+        int dis = 10000;
+        for (int i = 0; i <= maxId; i += distance) {
+            int end = i + distance < maxId ? i + distance : maxId;
+            List<EsTietouExtraction> tietous = tietou2019Mapper.listTietouAndExtractionByperoid(i + 1, end);
+            if (CollectionUtils.isEmpty(tietous)) {
+                continue;
+            }
+            int size = tietous.size();
+            int latchSize = size % dis == 0 ? size / dis : size / dis + 1;
+            CountDownLatch latch = new CountDownLatch(latchSize);
+            for (int j = 0; j < size; j += dis) {
+                int nextJ = j + dis;
+                int boundary = nextJ < size ? nextJ : size;
+                currentProxy.pushTietou2EsBybatch(tietous.subList(j, boundary), latch, esService);
+            }
+            try {
+                latch.await();
+            } catch (InterruptedException e) {
+                log.error("{}", e);
+                Thread.currentThread().interrupt();
+            } finally {
+                log.info("已执行完{}条记录", i + distance);
+            }
+        }
+        log.info("所有记录已更新完成，耗时{}秒", (System.currentTimeMillis() - timeMillis) / 1000);
+    }
+
+    @Async("taskExecutor")
+    public void pushTietou2EsBybatch(List<EsTietouExtraction> subList, CountDownLatch latch, EsService esService) {
+        BulkRequest bulkRequest = new BulkRequest();
+        int count = 0;
+        try {
+            for (EsTietouExtraction tietou2019 : subList) {
+                IndexRequest request = new IndexRequest("highway_tietou_extraction");
+                String doc = JSONObject.toJSONString(tietou2019, SerializerFeature.WriteDateUseDateFormat);
+                request.id(String.valueOf(tietou2019.getId()));
+                request.source(doc, XContentType.JSON);
+                bulkRequest.add(request);
+                count++;
+                if (count % 1000 == 0 || count == subList.size()) {
+                    esService.batchAddData(bulkRequest);
+                    bulkRequest = new BulkRequest();
+                }
+            }
+        } catch (Exception e) {
+            log.error("批量写入es失败", e);
+        } finally {
+            latch.countDown();
+        }
+    }
+
+    public void pushTietou2EsById() {
+        List<EsTietouExtraction> tietous = tietou2019Mapper.listTietouAndExtractionByperoid(1000, 1002);
+        for (EsTietouExtraction tietouExtraction : tietous) {
+            IndexRequest request = new IndexRequest(EsIndexConsts.HIGHWAY_TIETOU_EXTRACTION);
+            String doc = JSONObject.toJSONString(tietouExtraction, SerializerFeature.WriteDateUseDateFormat);
+            request.id(String.valueOf(tietouExtraction.getId()));
+            request.source(doc, XContentType.JSON);
+            try {
+                esService.addData(request);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
 }

@@ -195,7 +195,17 @@
   <select id="getSameStationCountByTimeAndDistance" resultType="java.lang.Integer">
     select count(1) from (select id from ${tableName}
     where vlp_id = #{carId}
-    and out_time BETWEEN #{beginDate} AND #{endDate}
+    <choose>
+      <when test="beginDate != null and endDate != null">
+        and out_time BETWEEN #{beginDate} AND #{endDate}
+      </when>
+      <when test="beginDate != null and endDate == null">
+        and out_time &gt;= #{beginDate}
+      </when>
+      <when test="beginDate == null and endDate != null">
+        and out_time &lt;= #{endDate}
+      </when>
+    </choose>
     <choose>
       <when test="rkId != null">
         and station_id = #{rkId}
@@ -231,7 +241,17 @@
     UNION
     select id from ${tableName}
     where vlp_id = #{carId}
-    and next_extime BETWEEN #{beginDate} AND #{endDate}
+    <choose>
+      <when test="beginDate != null and endDate != null">
+        and next_extime BETWEEN #{beginDate} AND #{endDate}
+      </when>
+      <when test="beginDate != null and endDate == null">
+        and next_extime &gt;= #{beginDate}
+      </when>
+      <when test="beginDate == null and endDate != null">
+        and next_extime &lt;= #{endDate}
+      </when>
+    </choose>
     <choose>
       <when test="rkId != null">
         and last_in_station_id = #{rkId}

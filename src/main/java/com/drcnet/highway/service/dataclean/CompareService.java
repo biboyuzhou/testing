@@ -2,6 +2,7 @@ package com.drcnet.highway.service.dataclean;
 
 
 import com.drcnet.highway.common.BeanConvertUtil;
+import com.drcnet.highway.constants.CacheKeyConsts;
 import com.drcnet.highway.constants.TipsConsts;
 import com.drcnet.highway.dao.*;
 import com.drcnet.highway.domain.CarFlag;
@@ -328,7 +329,7 @@ public class CompareService {
         boolean b = boundSetOps.isMember(id);
         System.out.println(222);
 
-        /*BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps("car_cache");
+        /*BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps(CacheKeyConsts.CAR_DIC_CACHE);
         Map<Object, Object> map = hashOperations.entries();
         if (map.containsKey("陕AZ5P89")) {
             System.out.println(map.get("陕AZ5P89"));
@@ -545,7 +546,7 @@ public class CompareService {
     public void addNewCarId2Cache() {
         long timeMillis = System.currentTimeMillis();
         CompareService currentProxy = applicationContext.getBean(CompareService.class);
-        BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps("car_cache");
+        BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps(CacheKeyConsts.CAR_DIC_CACHE);
         List<StationDic> stationDics = stationDicMapper.selectAllStation();
         Map<String, Integer> stationMap = stationDics.stream().collect(Collectors.toMap(StationDic::getStationName, StationDic::getId));
         Integer maxId = 21611570;
@@ -594,7 +595,7 @@ public class CompareService {
     }
 
     public void updateCarNoId() {
-        BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps("car_cache");
+        BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps(CacheKeyConsts.CAR_DIC_CACHE);
         List<TietouOrigin> tietouOrigins = tietouMapper.listEnvlpIsNullData();
         for (TietouOrigin tietouOrigin : tietouOrigins) {
             String vlp = tietouOrigin.getVlp();
@@ -1446,7 +1447,7 @@ public class CompareService {
      */
     public void checkAndUpdateTietouVlpId() {
         long timeMillis = System.currentTimeMillis();
-        BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps("car_cache");
+        BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps(CacheKeyConsts.CAR_DIC_CACHE);
         Integer maxId = 21611570;
         int distance = 1000000;
         int dis = 100000;
@@ -1523,7 +1524,7 @@ public class CompareService {
         int successAmount = 0;
         int total = 0;
         BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps("station_dic");
-        BoundHashOperations<String, Object, Object> carCache = redisTemplate.boundHashOps("car_cache");
+        BoundHashOperations<String, Object, Object> carCache = redisTemplate.boundHashOps(CacheKeyConsts.CAR_DIC_CACHE);
         List<TietouOrigin> originList = new ArrayList<>(5000);
         try (InputStream is = file.getInputStream()) {
             Workbook workbook = new XSSFWorkbook(is);

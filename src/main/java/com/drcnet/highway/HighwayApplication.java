@@ -18,7 +18,7 @@ import tk.mybatis.spring.annotation.MapperScan;
 @EnableAsync(order = Ordered.HIGHEST_PRECEDENCE,proxyTargetClass = true)
 @EnableAspectJAutoProxy(exposeProxy = true,proxyTargetClass = true)
 @MapperScan(basePackages = "com.drcnet.highway.dao")
-@ComponentScan(value = {"com.drcnet.response", "com.drcnet.usermodule", "com.drcnet.usermoduleredis", "com.drcnet.highway"})
+@ComponentScan(value = {"com.drcnet.response", "com.drcnet.usermodule", "com.drcnet.highway"})
 public class HighwayApplication {
 
     public static void main(String[] args) {

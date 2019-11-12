@@ -1,6 +1,6 @@
 spring:
   profiles:
-    active: datasource,second
+    active: mq,datasource,second
   http:
     encoding:
       charset: UTF-8

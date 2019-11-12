@@ -6,6 +6,7 @@ import com.drcnet.highway.util.templates.BaseService;
 import com.drcnet.highway.util.templates.MyMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import java.util.Date;
@@ -38,5 +39,20 @@ public class TaskService implements BaseService<Task,Integer> {
         task.setState(state);
         task.setFinishTime(new Date());
         return taskMapper.updateByPrimaryKeySelective(task);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public void getNewTaskId(Integer id) {
+        Task task = taskMapper.selectByPrimaryKey(id);
+        if (task == null) {
+            updateTaskState(1, 9);
+            task = new Task();
+            task.setId(id);
+            task.setTaskType(1);
+            task.setCreateTime(new Date());
+            int taskId = taskMapper.insert(task);
+            logger.info("task insert into success! taskId: {}", taskId);
+        }
+
     }
 }

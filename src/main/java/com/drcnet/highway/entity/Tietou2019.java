@@ -1,5 +1,6 @@
 package com.drcnet.highway.entity;
 
+import com.alibaba.fastjson.annotation.JSONField;
 import com.drcnet.highway.constants.TimeConsts;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
@@ -23,6 +24,7 @@ public class Tietou2019 implements Serializable {
      * 进站时间
      */
     @JsonFormat(pattern = TimeConsts.TIME_FORMAT,timezone = TimeConsts.GMT8)
+    @JSONField(format="yyyy-MM-dd HH:mm:ss")
     private LocalDateTime entime;
 
     /**
@@ -55,6 +57,7 @@ public class Tietou2019 implements Serializable {
      * 出站时间
      */
     @JsonFormat(pattern = TimeConsts.TIME_FORMAT,timezone = TimeConsts.GMT8)
+    @JSONField(format="yyyy-MM-dd HH:mm:ss")
     private LocalDateTime extime;
 
     /**
@@ -135,9 +138,6 @@ public class Tietou2019 implements Serializable {
     @Column(name = "weight_limitation")
     private Integer weightLimitation;
 
-    @Column(name = "second_flag")
-    private Byte secondFlag;
-
     private static final long serialVersionUID = 1L;
 
     @Override
@@ -174,7 +174,6 @@ public class Tietou2019 implements Serializable {
         sb.append(", realflagstationinfo=").append(realflagstationinfo);
         sb.append(", inv=").append(inv);
         sb.append(", weightLimitation=").append(weightLimitation);
-        sb.append(", secondFlag=").append(secondFlag);
         sb.append("]");
         return sb.toString();
     }

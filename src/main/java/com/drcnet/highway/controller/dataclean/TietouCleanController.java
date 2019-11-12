@@ -410,4 +410,19 @@ public class TietouCleanController {
         return currentTime;
     }
 
+
+
+    @ApiOperation(value = "将通行记录写入es")
+    @GetMapping("pushTietou2Es")
+    public Result pushTietou2Es() {
+        tietouCleanService.pushTietou2Es();
+        return Result.ok();
+    }
+
+    @ApiOperation(value = "将通行记录写入es")
+    @GetMapping("pushTietou2EsById")
+    public Result pushTietou2EsById() {
+        tietouCleanService.pushTietou2EsById();
+        return Result.ok();
+    }
 }

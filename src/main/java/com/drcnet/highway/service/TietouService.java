@@ -1,6 +1,7 @@
 package com.drcnet.highway.service;
 
 import com.drcnet.highway.config.LocalVariableConfig;
+import com.drcnet.highway.constants.CacheKeyConsts;
 import com.drcnet.highway.constants.ConfigConsts;
 import com.drcnet.highway.constants.RiskConsts;
 import com.drcnet.highway.constants.TipsConsts;
@@ -229,13 +230,13 @@ public class TietouService {
     }
 
 
-    public PageVo<TietouOrigin> listRiskInOutDetail(Integer carNoId,FeatureCodeEnum featureCodeEnum,CheatingListTimeSearchDto dto) {
+    public PageVo<TietouOrigin> listRiskInOutDetail(Integer carNoId, FeatureCodeEnum featureCodeEnum, CheatingListTimeSearchDto dto, YesNoEnum isCurrent) {
         RiskInOutDto riskInOutDto = new RiskInOutDto();
         riskInOutDto.setCarId(carNoId);
         riskInOutDto.setCode(featureCodeEnum.code);
         riskInOutDto.setPageNum(1);
         riskInOutDto.setPageSize(10);
-        riskInOutDto.setIsCurrent(YesNoEnum.NO.getCode());
+        riskInOutDto.setIsCurrent(isCurrent.getCode());
         riskInOutDto.setBeginDate(dto.getBeginDate());
         riskInOutDto.setEndDate(dto.getEndDate());
         return listRiskInOutDetail(riskInOutDto);
@@ -247,12 +248,6 @@ public class TietouService {
      * @param riskByRankRequest
      */
     public List<RiskMap> listRiskByRank(RiskByRankRequest riskByRankRequest) {
-        if (riskByRankRequest.getBeginDate() == null) {
-            riskByRankRequest.setBeginDate(DateUtils.getFirstDayOfCurrentYear());
-        }
-        if (riskByRankRequest.getEndDate() == null) {
-            riskByRankRequest.setEndDate(DateUtils.getCurrentDay());
-        }
         //把前台传入的里程由km转化为m
         if (riskByRankRequest.getMaxDistance() != null) {
             riskByRankRequest.setMaxDistance(riskByRankRequest.getMaxDistance() * 1000);
@@ -511,7 +506,7 @@ public class TietouService {
      * @return
      */
     public PageVo<TietouOrigin> queryTravelRecords(TravelRecordQueryDto travelRecordQueryDto) throws ParseException {
-        BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps("car_cache");
+        BoundHashOperations<String, Object, Object> hashOperations = redisTemplate.boundHashOps(CacheKeyConsts.CAR_DIC_CACHE);
 
         Integer envlpId = null;
         if (!StringUtils.isEmpty(travelRecordQueryDto.getInCarNo())) {
@@ -939,8 +934,8 @@ public class TietouService {
         return tietouMapper.listLowSpeedAndWeight(carNoId,limit,overWeightFlag,lightWeightFlag);
     }
 
-    public List<TietouOrigin> listSameCarNumRecord(Integer carNoId, int limit) {
-        return tietouMapper.listSameCarNumRecord(carNoId,limit);
+    public List<TietouOrigin> listSameCarNumRecord(Integer carNoId, int limit, Integer isCurrent) {
+        return tietouMapper.listSameCarNumRecord(carNoId,limit,isCurrent);
     }
 
     /**
@@ -1099,5 +1094,16 @@ public class TietouService {
         PageHelper.startPage(travelRecordQueryDto.getPageNum(), travelRecordQueryDto.getPageSize());
         List<TietouOrigin> list = tietou2019Mapper.listByTime(travelRecordQueryDto);
         return list;
+    }
+
+    /**
+     * 查询在某个时间段内的通行记录
+     * @param vlpId
+     * @param startTime
+     * @param endTime
+     * @return
+     */
+    public List<TietouOrigin> listRecordByVlpAndExEntime(Integer vlpId, LocalDateTime startTime, LocalDateTime endTime) {
+        return tietouMapper.listRecordByVlpAndExEntime(vlpId,startTime,endTime);
     }
 }

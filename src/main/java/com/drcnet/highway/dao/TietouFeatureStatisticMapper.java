@@ -1,6 +1,7 @@
 package com.drcnet.highway.dao;
 
 import com.drcnet.highway.domain.StatisticCount;
+import com.drcnet.highway.dto.RiskPeriodAmount;
 import com.drcnet.highway.entity.TietouFeatureStatistic;
 import com.drcnet.highway.entity.TietouFeatureStatisticGyh;
 import com.drcnet.highway.util.templates.MyMapper;
@@ -103,4 +104,34 @@ public interface TietouFeatureStatisticMapper extends MyMapper<TietouFeatureStat
     List<Integer> getTop20VlpId();
 
     TietouFeatureStatistic selectFromAllByVlpId(@Param("vlpId") Integer vlpId);
+
+    Integer getSecondRiskData();
+
+    Integer getYlRiskData();
+
+    Integer getBgyRiskData();
+
+    Integer getNdlRiskData();
+
+    Integer getCzlRiskData();
+
+    Integer getCmfxRiskData();
+
+    Integer getMnRiskData();
+
+    Integer getNwrRiskData();
+
+    Integer getXgRiskData();
+
+    Integer getYxRiskData();
+
+    Integer getZlRiskData();
+
+    /**
+     * 获取总数据高中低风险数据量
+     * @return
+     */
+    RiskPeriodAmount getRiskProportion();
+
+    List<Integer> selectCurrentCarNoId(@Param("carIdList") List<Integer> carIdList);
 }

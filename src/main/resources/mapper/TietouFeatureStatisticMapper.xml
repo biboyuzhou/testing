@@ -249,7 +249,68 @@
   <select id="getTop20VlpId" resultType="java.lang.Integer">
     select vlp_id from tietou_feature_statistic s where is_free_car = 0 order by score desc limit 20
   </select>
-    <select id="selectFromAllByVlpId" resultMap="BaseResultMap">
-      select * from highway_tietou.tietou_feature_statistic where vlp_id = #{vlpId}
-    </select>
+  <select id="selectFromAllByVlpId" resultMap="BaseResultMap">
+    select * from highway_tietou.tietou_feature_statistic where vlp_id = #{vlpId}
+  </select>
+
+  <select id="getSecondRiskData" resultType="java.lang.Integer">
+    select count(1) from highway2ndround.tietou_feature_statistic where score > 80 and is_free_car = 0 and total > 0
+  </select>
+
+  <select id="getYlRiskData" resultType="java.lang.Integer">
+    select count(1) from highway_yl.tietou_feature_statistic where score > 80 and is_free_car = 0 and total > 0
+  </select>
+
+  <select id="getBgyRiskData" resultType="java.lang.Integer">
+    select count(1) from highway_bgy.tietou_feature_statistic where score > 80 and is_free_car = 0 and total > 0
+  </select>
+
+  <select id="getNdlRiskData" resultType="java.lang.Integer">
+    select count(1) from highway_ndl.tietou_feature_statistic where score > 80 and is_free_car = 0 and total > 0
+  </select>
+
+  <select id="getCzlRiskData" resultType="java.lang.Integer">
+    select count(1) from highway_czl.tietou_feature_statistic where score > 80 and is_free_car = 0 and total > 0
+  </select>
+
+  <select id="getCmfxRiskData" resultType="java.lang.Integer">
+    select count(1) from highway_cmfx.tietou_feature_statistic where score > 80 and is_free_car = 0 and total > 0
+  </select>
+
+  <select id="getMnRiskData" resultType="java.lang.Integer">
+    select count(1) from highway_mn.tietou_feature_statistic where score > 80 and is_free_car = 0 and total > 0
+  </select>
+
+  <select id="getNwrRiskData" resultType="java.lang.Integer">
+    select count(1) from highway_nwr.tietou_feature_statistic where score > 80 and is_free_car = 0 and total > 0
+  </select>
+
+  <select id="getXgRiskData" resultType="java.lang.Integer">
+    select count(1) from highway_xg.tietou_feature_statistic where score > 80 and is_free_car = 0 and total > 0
+  </select>
+
+  <select id="getYxRiskData" resultType="java.lang.Integer">
+    select count(1) from highway_yx.tietou_feature_statistic where score > 80 and is_free_car = 0 and total > 0
+  </select>
+
+  <select id="getZlRiskData" resultType="java.lang.Integer">
+    select count(1) from highway_zl.tietou_feature_statistic where score > 80 and is_free_car = 0 and total > 0
+  </select>
+
+  <select id="getRiskProportion" resultType="com.drcnet.highway.dto.RiskPeriodAmount">
+    select 0 non,
+    COUNT(case when ts.score BETWEEN 20 and 49.99 then 1 ELSE NULL end) low,
+    COUNT(case when ts.score BETWEEN 50 and 79.99 then 1 ELSE NULL end) middle,
+    COUNT(case when ts.score BETWEEN 80 and 100 then 1 ELSE NULL end) high
+    from highway_tietou.tietou_feature_statistic ts
+    where score > 20 and is_free_car = 0 and
+      total > 0
+  </select>
+  <select id="selectCurrentCarNoId" resultType="java.lang.Integer">
+      select vlp_id from tietou_feature_statistic where vlp_id in
+      <foreach collection="carIdList" open="(" close=")" separator="," item="item">
+          #{item}
+      </foreach>
+      and total &gt; 4
+  </select>
 </mapper>
